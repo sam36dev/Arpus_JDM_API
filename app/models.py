@@ -1,0 +1,129 @@
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, JSON
+)
+from sqlalchemy.orm import relationship
+
+from .database import Base
+
+
+class Rarity(Base):
+    __tablename__ = "rarities"
+
+    id = Column(String, primary_key=True)  # comum, incomum, rara, holo, ultra
+    label = Column(String, nullable=False)
+    color = Column(String, nullable=False)
+    chance = Column(Float, nullable=False)  # 0.60, 0.25, 0.10, 0.04, 0.01
+
+    cards = relationship("Card", back_populates="rarity")
+
+
+class Card(Base):
+    __tablename__ = "cards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    image = Column(Text, nullable=True)
+    rarity_id = Column(String, ForeignKey("rarities.id"), nullable=False)
+
+    rarity = relationship("Rarity", back_populates="cards")
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    brand = Column(String, nullable=True)
+    category = Column(String, nullable=False)  # miniaturas, itens, pacotes
+    price = Column(Float, nullable=False)
+    original_price = Column(Float, nullable=True)
+    badge = Column(String, nullable=True)
+    badge_color = Column(String, nullable=True)
+    rating = Column(Float, default=5.0)
+    reviews = Column(Integer, default=0)
+    description = Column(Text, nullable=True)
+    specs = Column(JSON, default=list)  # [{label, value}]
+    image = Column(Text, nullable=True)
+    is_pack = Column(Boolean, default=False)
+
+    bonus_card_enabled = Column(Boolean, default=False)
+    bonus_card_rarity = Column(String, nullable=True)  # rarity id or "random"
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    pack_config = relationship(
+        "PackConfig", back_populates="product", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class PackConfig(Base):
+    __tablename__ = "pack_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), unique=True, nullable=False)
+    min_cards = Column(Integer, default=1)
+    max_cards = Column(Integer, default=1)
+    holo_guaranteed = Column(Boolean, default=False)
+    ultra_possible = Column(Boolean, default=True)
+
+    product = relationship("Product", back_populates="pack_config")
+
+
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+
+
+class Customer(Base):
+    __tablename__ = "customers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, default="pendente")  # pendente, pago, cancelado
+    total = Column(Float, nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    customer_email = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    customer = relationship("Customer")
+    items = relationship("OrderItem", back_populates="order")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, default=1)
+    unit_price = Column(Float, nullable=False)
+
+    order = relationship("Order", back_populates="items")
+    pulls = relationship("CardPull", back_populates="order_item")
+
+
+class CardPull(Base):
+    __tablename__ = "card_pulls"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_item_id = Column(Integer, ForeignKey("order_items.id"), nullable=False)
+    unit_index = Column(Integer, default=0)  # qual unidade comprada (quando quantity > 1)
+    card_id = Column(Integer, ForeignKey("cards.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    order_item = relationship("OrderItem", back_populates="pulls")
+    card = relationship("Card")
