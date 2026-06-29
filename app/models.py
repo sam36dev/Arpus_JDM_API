@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, JSON
+    Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Table, Text, JSON
 )
 from sqlalchemy.orm import relationship
 
@@ -19,6 +19,14 @@ class Rarity(Base):
     cards = relationship("Card", back_populates="rarity")
 
 
+collection_cards = Table(
+    "collection_cards",
+    Base.metadata,
+    Column("collection_id", Integer, ForeignKey("collections.id"), primary_key=True),
+    Column("card_id", Integer, ForeignKey("cards.id"), primary_key=True),
+)
+
+
 class Card(Base):
     __tablename__ = "cards"
 
@@ -28,6 +36,19 @@ class Card(Base):
     rarity_id = Column(String, ForeignKey("rarities.id"), nullable=False)
 
     rarity = relationship("Rarity", back_populates="cards")
+    collections = relationship("Collection", secondary=collection_cards, back_populates="cards")
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    image = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    cards = relationship("Card", secondary=collection_cards, back_populates="collections")
 
 
 class Product(Base):

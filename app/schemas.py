@@ -57,6 +57,38 @@ class RarityOut(BaseModel):
     chance: float
 
 
+class CardCreate(BaseModel):
+    name: str
+    image: Optional[str] = None
+    rarity_id: str
+
+
+class CardOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    image: Optional[str] = None
+    rarity_id: str
+    rarity: RarityOut
+
+
+class CollectionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    image: Optional[str] = None
+    card_ids: list[int] = []
+
+
+class CollectionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    description: Optional[str] = None
+    image: Optional[str] = None
+    created_at: datetime
+    cards: list[CardOut] = []
+
+
 class AdminLogin(BaseModel):
     email: str
     password: str

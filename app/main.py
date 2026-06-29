@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, SessionLocal, engine
-from .routers import admin, customers, orders, products, rarities
+from .routers import admin, cards, collections, customers, orders, products, rarities
 from .seed_data import seed_initial_data
 
 Base.metadata.create_all(bind=engine)
@@ -34,6 +34,8 @@ app.include_router(admin.router)
 app.include_router(customers.router)
 app.include_router(orders.router)
 app.include_router(rarities.router)
+app.include_router(cards.router)
+app.include_router(collections.router)
 
 
 @app.get("/")
