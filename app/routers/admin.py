@@ -37,3 +37,43 @@ def bootstrap(payload: schemas.AdminBootstrap, db: Session = Depends(get_db)):
     db.add(admin)
     db.commit()
     return {"ok": True}
+
+
+RARITY_REMAP_V2 = {"comum": "normal", "incomum": "normal", "holo": "lendaria", "ultra": "lendaria"}
+NEW_RARITIES_V2 = [
+    {"id": "normal", "label": "Normal", "color": "#8a8a9a", "chance": 0.70},
+    {"id": "rara", "label": "Rara", "color": "#c060ff", "chance": 0.20},
+    {"id": "lendaria", "label": "Lendária", "color": "#c8a44a", "chance": 0.10},
+]
+
+
+@router.post("/migrate-rarities-v2")
+def migrate_rarities_v2(
+    db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)
+):
+    """Migração única: 5 raridades (comum/incomum/rara/holo/ultra) -> 3
+    (normal/rara/lendaria). Remove esta rota depois de rodar em todos os ambientes."""
+    for r in NEW_RARITIES_V2:
+        existing = db.get(models.Rarity, r["id"])
+        if existing:
+            existing.label, existing.color, existing.chance = r["label"], r["color"], r["chance"]
+        else:
+            db.add(models.Rarity(**r))
+    db.flush()
+
+    for card in db.query(models.Card).all():
+        if card.rarity_id in RARITY_REMAP_V2:
+            card.rarity_id = RARITY_REMAP_V2[card.rarity_id]
+
+    for product in db.query(models.Product).all():
+        if product.bonus_card_rarity in RARITY_REMAP_V2:
+            product.bonus_card_rarity = RARITY_REMAP_V2[product.bonus_card_rarity]
+
+    db.flush()
+    for old_id in RARITY_REMAP_V2:
+        old = db.get(models.Rarity, old_id)
+        if old:
+            db.delete(old)
+
+    db.commit()
+    return {"ok": True, "rarities": [r.id for r in db.query(models.Rarity).all()]}

@@ -5,13 +5,13 @@ from sqlalchemy.orm import Session
 from . import models
 
 
-def draw_rarity(db: Session, allow_ultra: bool = True, force_min_rarity: str | None = None) -> models.Rarity:
+def draw_rarity(db: Session, allow_lendaria: bool = True, force_min_rarity: str | None = None) -> models.Rarity:
     """Sorteia uma raridade com base no peso (chance) de cada uma."""
     rarities = db.query(models.Rarity).all()
-    if not allow_ultra:
-        rarities = [r for r in rarities if r.id != "ultra"]
+    if not allow_lendaria:
+        rarities = [r for r in rarities if r.id != "lendaria"]
     if force_min_rarity:
-        order = ["comum", "incomum", "rara", "holo", "ultra"]
+        order = ["normal", "rara", "lendaria"]
         min_idx = order.index(force_min_rarity)
         rarities = [r for r in rarities if order.index(r.id) >= min_idx]
 
@@ -48,15 +48,17 @@ def open_pack(db: Session, product: models.Product) -> list[models.Card]:
     max_cards = config.max_cards if config else 1
     n = random.randint(min_cards, max_cards)
 
-    allow_ultra = config.ultra_possible if config else True
-    holo_guaranteed = config.holo_guaranteed if config else False
+    # ultra_possible/holo_guaranteed: nomes herdados do esquema antigo de 5 raridades,
+    # agora representam "pode sair lendária" e "garante pelo menos 1 rara"
+    allow_lendaria = config.ultra_possible if config else True
+    rara_guaranteed = config.holo_guaranteed if config else False
 
     drawn: list[models.Card] = []
     for i in range(n):
-        force_min = "holo" if (holo_guaranteed and i == n - 1 and not any(
-            c.rarity_id in ("holo", "ultra") for c in drawn
+        force_min = "rara" if (rara_guaranteed and i == n - 1 and not any(
+            c.rarity_id in ("rara", "lendaria") for c in drawn
         )) else None
-        rarity = draw_rarity(db, allow_ultra=allow_ultra, force_min_rarity=force_min)
+        rarity = draw_rarity(db, allow_lendaria=allow_lendaria, force_min_rarity=force_min)
         card = draw_card(db, rarity)
         if card:
             drawn.append(card)

@@ -3,23 +3,21 @@ from sqlalchemy.orm import Session
 from .models import Card, Rarity
 
 RARITIES = [
-    {"id": "comum", "label": "Comum", "color": "#8a8a9a", "chance": 0.60},
-    {"id": "incomum", "label": "Incomum", "color": "#4a9eff", "chance": 0.25},
-    {"id": "rara", "label": "Rara", "color": "#c8a44a", "chance": 0.10},
-    {"id": "holo", "label": "Holo Rara", "color": "#c060ff", "chance": 0.04},
-    {"id": "ultra", "label": "Ultra Rara", "color": "#ff4040", "chance": 0.01},
+    {"id": "normal", "label": "Normal", "color": "#8a8a9a", "chance": 0.70},
+    {"id": "rara", "label": "Rara", "color": "#c060ff", "chance": 0.20},
+    {"id": "lendaria", "label": "Lendária", "color": "#c8a44a", "chance": 0.10},
 ]
 
 CARDS = [
-    ("Honda EK9 Civic Type R", "comum"),
-    ("Toyota AE86 Trueno", "comum"),
-    ("Mazda RX-7 FD3S", "comum"),
-    ("Nissan Skyline R34", "incomum"),
-    ("Toyota Supra MK4", "incomum"),
+    ("Honda EK9 Civic Type R", "normal"),
+    ("Toyota AE86 Trueno", "normal"),
+    ("Mazda RX-7 FD3S", "normal"),
+    ("Nissan Skyline R34", "normal"),
+    ("Toyota Supra MK4", "normal"),
     ("Mitsubishi Lancer Evo VI", "rara"),
     ("Subaru Impreza WRX STI 22B", "rara"),
-    ("Nissan Skyline GT-R R34 Nismo", "holo"),
-    ("Toyota Supra MK4 Top Secret", "ultra"),
+    ("Nissan Skyline GT-R R34 Nismo", "lendaria"),
+    ("Toyota Supra MK4 Top Secret", "lendaria"),
 ]
 
 
