@@ -24,6 +24,37 @@ def me(admin: models.AdminUser = Depends(get_current_admin)):
     return {"email": admin.email}
 
 
+@router.post("/seed-packs")
+def seed_packs(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    """Cria os 3 pacotes padrão se ainda não existirem."""
+    packs_data = [
+        dict(name="Pack Solo", brand="ARPUS Collectibles", category="pacotes",
+             price=11.99, description="1 carta por pack. Cada abertura pode surpreender.",
+             is_pack=True, rating=5.0, reviews=0, specs=[],
+             cfg=dict(min_cards=1, max_cards=1, holo_guaranteed=False, ultra_possible=True)),
+        dict(name="Pack Trio", brand="ARPUS Collectibles", category="pacotes",
+             price=29.97, description="3 cartas por pack. Mais chances, mais surpresas.",
+             is_pack=True, rating=5.0, reviews=0, specs=[],
+             cfg=dict(min_cards=3, max_cards=3, holo_guaranteed=False, ultra_possible=True)),
+        dict(name="Pack Sexteto", brand="ARPUS Collectibles", category="pacotes",
+             price=53.94, description="6 cartas por pack. Garante pelo menos 1 Rara.",
+             is_pack=True, rating=5.0, reviews=0, specs=[],
+             cfg=dict(min_cards=6, max_cards=6, holo_guaranteed=True, ultra_possible=True)),
+    ]
+    created = []
+    for data in packs_data:
+        cfg = data.pop("cfg")
+        existing = db.query(models.Product).filter(models.Product.name == data["name"]).first()
+        if not existing:
+            product = models.Product(**data, bonus_card_enabled=False)
+            db.add(product)
+            db.flush()
+            db.add(models.PackConfig(product_id=product.id, **cfg))
+            created.append(data["name"])
+    db.commit()
+    return {"created": created}
+
+
 @router.post("/bootstrap")
 def bootstrap(payload: schemas.AdminBootstrap, db: Session = Depends(get_db)):
     """Cria o primeiro admin. Exige ADMIN_BOOTSTRAP_KEY (env var) e só
