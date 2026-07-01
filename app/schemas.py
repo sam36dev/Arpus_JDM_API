@@ -89,6 +89,25 @@ class CollectionOut(BaseModel):
     cards: list[CardOut] = []
 
 
+class ContaCreate(BaseModel):
+    buyer_name: str
+    transferred: float = 0
+    spent: float = 0
+    category: str = "miniatura"
+    notes: Optional[str] = None
+
+
+class ContaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    buyer_name: str
+    transferred: float
+    spent: float
+    category: str
+    notes: Optional[str]
+    created_at: datetime
+
+
 class AdminLogin(BaseModel):
     email: str
     password: str

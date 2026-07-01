@@ -92,6 +92,18 @@ class PackConfig(Base):
     product = relationship("Product", back_populates="pack_config")
 
 
+class Conta(Base):
+    __tablename__ = "contas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    buyer_name = Column(String, nullable=False)
+    transferred = Column(Float, nullable=False, default=0)
+    spent = Column(Float, nullable=False, default=0)
+    category = Column(String, nullable=False, default="miniatura")
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AdminUser(Base):
     __tablename__ = "admin_users"
 
