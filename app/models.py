@@ -67,6 +67,7 @@ class Product(Base):
     description = Column(Text, nullable=True)
     specs = Column(JSON, default=list)  # [{label, value}]
     image = Column(Text, nullable=True)
+    images = Column(JSON, default=list)
     is_pack = Column(Boolean, default=False)
 
     bonus_card_enabled = Column(Boolean, default=False)
@@ -90,6 +91,17 @@ class PackConfig(Base):
     ultra_possible = Column(Boolean, default=True)
 
     product = relationship("Product", back_populates="pack_config")
+
+
+class Chamado(Base):
+    __tablename__ = "chamados"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    hours = Column(Integer, nullable=False)
+    status = Column(String, default="aberto")  # aberto / fechado
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Conta(Base):

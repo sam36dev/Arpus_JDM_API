@@ -34,6 +34,7 @@ class ProductBase(BaseModel):
     description: Optional[str] = None
     specs: list[SpecItem] = []
     image: Optional[str] = None
+    images: list[str] = []
     is_pack: bool = False
     bonus_card: BonusCard = BonusCard()
     pack_config: Optional[PackConfigSchema] = None
@@ -105,6 +106,29 @@ class ContaOut(BaseModel):
     spent: float
     category: str
     notes: Optional[str]
+    created_at: datetime
+
+
+class ChamadoCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    hours: int
+
+
+class ChamadoUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    hours: Optional[int] = None
+    status: Optional[str] = None
+
+
+class ChamadoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    description: Optional[str]
+    hours: int
+    status: str
     created_at: datetime
 
 

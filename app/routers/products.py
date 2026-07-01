@@ -23,6 +23,7 @@ def _to_out(p: models.Product) -> dict:
         "description": p.description,
         "specs": p.specs or [],
         "image": p.image,
+        "images": p.images or [],
         "is_pack": p.is_pack,
         "created_at": p.created_at,
         "bonus_card": {
@@ -65,6 +66,7 @@ def create_product(
     _admin: models.AdminUser = Depends(get_current_admin),
 ):
     data = payload.model_dump(exclude={"bonus_card", "pack_config", "specs"})
+    data["image"] = data["images"][0] if data.get("images") else data.get("image")
     product = models.Product(
         **data,
         specs=[s.model_dump() for s in payload.specs],
@@ -94,6 +96,7 @@ def update_product(
         raise HTTPException(404, "Produto não encontrado")
 
     data = payload.model_dump(exclude={"bonus_card", "pack_config", "specs"})
+    data["image"] = data["images"][0] if data.get("images") else data.get("image")
     for key, value in data.items():
         setattr(product, key, value)
     product.specs = [s.model_dump() for s in payload.specs]

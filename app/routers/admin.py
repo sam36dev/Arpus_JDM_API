@@ -1,6 +1,7 @@
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -22,6 +23,18 @@ def login(payload: schemas.AdminLogin, db: Session = Depends(get_db)):
 @router.get("/me")
 def me(admin: models.AdminUser = Depends(get_current_admin)):
     return {"email": admin.email}
+
+
+@router.post("/migrate-images-column")
+def migrate_images_column(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    """Adiciona coluna images à tabela products se não existir."""
+    try:
+        db.execute(text("ALTER TABLE products ADD COLUMN images JSON"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna images adicionada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
 
 
 @router.post("/seed-packs")
