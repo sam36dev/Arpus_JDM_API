@@ -70,6 +70,7 @@ class Product(Base):
     images = Column(JSON, default=list)
     miniature_type = Column(String, nullable=True)  # JDM, Outros
     is_pack = Column(Boolean, default=False)
+    stock = Column(Integer, nullable=True)  # None = sem controle de estoque
 
     bonus_card_enabled = Column(Boolean, default=False)
     bonus_card_rarity = Column(String, nullable=True)  # rarity id or "random"

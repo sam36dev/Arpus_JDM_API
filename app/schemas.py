@@ -37,6 +37,7 @@ class ProductBase(BaseModel):
     images: list[str] = []
     miniature_type: Optional[str] = None
     is_pack: bool = False
+    stock: Optional[int] = None
     bonus_card: BonusCard = BonusCard()
     pack_config: Optional[PackConfigSchema] = None
 

@@ -55,6 +55,17 @@ def create_admin(payload: AdminCreate, db: Session = Depends(get_db), _super=Dep
     return {"ok": True, "email": payload.email, "role": payload.role}
 
 
+@router.post("/migrate-product-stock")
+def migrate_product_stock(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("ALTER TABLE products ADD COLUMN stock INTEGER"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna stock adicionada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post("/migrate-chamado-score")
 def migrate_chamado_score(db: Session = Depends(get_db)):
     results = []
