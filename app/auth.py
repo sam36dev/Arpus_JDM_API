@@ -54,6 +54,12 @@ def get_current_admin(
     return admin
 
 
+def get_current_super_admin(admin: AdminUser = Depends(get_current_admin)) -> AdminUser:
+    if (admin.role or "super") != "super":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores master")
+    return admin
+
+
 def get_current_customer(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> Customer:

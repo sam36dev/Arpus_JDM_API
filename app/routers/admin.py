@@ -1,12 +1,19 @@
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
-from ..auth import create_access_token, get_current_admin, hash_password, verify_password
+from ..auth import create_access_token, get_current_admin, get_current_super_admin, hash_password, verify_password
 from ..database import get_db
+
+
+class AdminCreate(BaseModel):
+    email: str
+    password: str
+    role: str = "atendente"
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -22,7 +29,32 @@ def login(payload: schemas.AdminLogin, db: Session = Depends(get_db)):
 
 @router.get("/me")
 def me(admin: models.AdminUser = Depends(get_current_admin)):
-    return {"email": admin.email}
+    return {"email": admin.email, "role": admin.role or "super"}
+
+
+@router.post("/create-admin")
+def create_admin(payload: AdminCreate, db: Session = Depends(get_db), _super=Depends(get_current_super_admin)):
+    if db.query(models.AdminUser).filter(models.AdminUser.email == payload.email).first():
+        raise HTTPException(400, "Email já cadastrado")
+    user = models.AdminUser(
+        email=payload.email,
+        hashed_password=hash_password(payload.password),
+        role=payload.role,
+    )
+    db.add(user)
+    db.commit()
+    return {"ok": True, "email": payload.email, "role": payload.role}
+
+
+@router.post("/migrate-admin-role")
+def migrate_admin_role(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    try:
+        db.execute(text("ALTER TABLE admin_users ADD COLUMN role VARCHAR DEFAULT 'super'"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna role adicionada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
 
 
 @router.post("/migrate-chamado-conta")
