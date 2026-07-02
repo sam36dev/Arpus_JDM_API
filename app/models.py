@@ -68,6 +68,7 @@ class Product(Base):
     specs = Column(JSON, default=list)  # [{label, value}]
     image = Column(Text, nullable=True)
     images = Column(JSON, default=list)
+    miniature_type = Column(String, nullable=True)  # JDM, Outros
     is_pack = Column(Boolean, default=False)
 
     bonus_card_enabled = Column(Boolean, default=False)

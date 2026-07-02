@@ -25,6 +25,17 @@ def me(admin: models.AdminUser = Depends(get_current_admin)):
     return {"email": admin.email}
 
 
+@router.post("/migrate-miniature-type")
+def migrate_miniature_type(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    try:
+        db.execute(text("ALTER TABLE products ADD COLUMN miniature_type VARCHAR"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna miniature_type adicionada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post("/migrate-images-column")
 def migrate_images_column(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
     """Adiciona coluna images à tabela products se não existir."""
