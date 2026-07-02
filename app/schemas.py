@@ -114,6 +114,7 @@ class ChamadoCreate(BaseModel):
     title: str
     description: Optional[str] = None
     hours: int
+    conta_id: Optional[int] = None
 
 
 class ChamadoUpdate(BaseModel):
@@ -121,6 +122,7 @@ class ChamadoUpdate(BaseModel):
     description: Optional[str] = None
     hours: Optional[int] = None
     status: Optional[str] = None
+    conta_id: Optional[int] = None
 
 
 class ChamadoOut(BaseModel):
@@ -130,6 +132,8 @@ class ChamadoOut(BaseModel):
     description: Optional[str]
     hours: int
     status: str
+    conta_id: Optional[int] = None
+    conta_name: Optional[str] = None
     created_at: datetime
 
 

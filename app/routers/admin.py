@@ -25,6 +25,17 @@ def me(admin: models.AdminUser = Depends(get_current_admin)):
     return {"email": admin.email}
 
 
+@router.post("/migrate-chamado-conta")
+def migrate_chamado_conta(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    try:
+        db.execute(text("ALTER TABLE chamados ADD COLUMN conta_id INTEGER REFERENCES contas(id)"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna conta_id adicionada a chamados"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post("/migrate-miniature-type")
 def migrate_miniature_type(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
     try:

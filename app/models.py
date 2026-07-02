@@ -101,8 +101,11 @@ class Chamado(Base):
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     hours = Column(Integer, nullable=False)
-    status = Column(String, default="aberto")  # aberto / fechado
+    status = Column(String, default="em_andamento")  # em_andamento / concluido
+    conta_id = Column(Integer, ForeignKey("contas.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    conta = relationship("Conta")
 
 
 class Conta(Base):
