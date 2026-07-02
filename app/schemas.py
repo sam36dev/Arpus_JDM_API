@@ -132,9 +132,11 @@ class ChamadoOut(BaseModel):
     description: Optional[str]
     hours: int
     status: str
+    score: Optional[str] = None
     conta_id: Optional[int] = None
     conta_name: Optional[str] = None
     created_at: datetime
+    completed_at: Optional[datetime] = None
 
 
 class AdminLogin(BaseModel):

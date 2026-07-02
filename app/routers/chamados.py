@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
@@ -10,6 +11,18 @@ router = APIRouter(prefix="/chamados", tags=["chamados"])
 EM_ANDAMENTO = ("aberto", "em_andamento")
 
 
+def _score(created_at: datetime, hours: int) -> str:
+    total = hours * 3600
+    elapsed = (datetime.utcnow() - created_at).total_seconds()
+    pct = ((total - elapsed) / total) * 100
+    if pct >= 90: return "JDM MASTER"
+    if pct >= 85: return "EXCELENTE"
+    if pct >= 70: return "BOM"
+    if pct >= 50: return "MEDIANO"
+    if pct >= 10: return "RUIM"
+    return "PÉSSIMO"
+
+
 def _out(c: models.Chamado) -> dict:
     return {
         "id": c.id,
@@ -17,9 +30,11 @@ def _out(c: models.Chamado) -> dict:
         "description": c.description,
         "hours": c.hours,
         "status": c.status,
+        "score": c.score,
         "conta_id": c.conta_id,
         "conta_name": c.conta.buyer_name if c.conta else None,
         "created_at": c.created_at,
+        "completed_at": c.completed_at,
     }
 
 
@@ -56,7 +71,14 @@ def update_chamado(chamado_id: int, payload: schemas.ChamadoUpdate, db: Session 
     chamado = db.query(models.Chamado).options(joinedload(models.Chamado.conta)).filter(models.Chamado.id == chamado_id).first()
     if not chamado:
         raise HTTPException(404, "Chamado não encontrado")
-    for key, value in payload.model_dump(exclude_none=True).items():
+    data = payload.model_dump(exclude_none=True)
+    if data.get("status") == "concluido" and chamado.status != "concluido":
+        chamado.score = _score(chamado.created_at, chamado.hours)
+        chamado.completed_at = datetime.utcnow()
+    elif data.get("status") in ("aberto", "em_andamento"):
+        chamado.score = None
+        chamado.completed_at = None
+    for key, value in data.items():
         setattr(chamado, key, value)
     db.commit()
     db.refresh(chamado)

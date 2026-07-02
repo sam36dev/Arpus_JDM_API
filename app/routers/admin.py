@@ -28,8 +28,17 @@ def login(payload: schemas.AdminLogin, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def me(admin: models.AdminUser = Depends(get_current_admin)):
-    return {"email": admin.email, "role": admin.role or "super"}
+def me(admin: models.AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    score = None
+    last = (
+        db.query(models.Chamado)
+        .filter(models.Chamado.status == "concluido", models.Chamado.score.isnot(None))
+        .order_by(models.Chamado.completed_at.desc())
+        .first()
+    )
+    if last:
+        score = last.score
+    return {"email": admin.email, "role": admin.role or "super", "score": score}
 
 
 @router.post("/create-admin")
@@ -44,6 +53,23 @@ def create_admin(payload: AdminCreate, db: Session = Depends(get_db), _super=Dep
     db.add(user)
     db.commit()
     return {"ok": True, "email": payload.email, "role": payload.role}
+
+
+@router.post("/migrate-chamado-score")
+def migrate_chamado_score(db: Session = Depends(get_db)):
+    results = []
+    for col, ddl in [
+        ("score", "ALTER TABLE chamados ADD COLUMN score VARCHAR"),
+        ("completed_at", "ALTER TABLE chamados ADD COLUMN completed_at TIMESTAMP"),
+    ]:
+        try:
+            db.execute(text(ddl))
+            db.commit()
+            results.append(f"{col}: ok")
+        except Exception as e:
+            db.rollback()
+            results.append(f"{col}: {e}")
+    return {"results": results}
 
 
 @router.post("/migrate-admin-role")

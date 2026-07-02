@@ -102,8 +102,10 @@ class Chamado(Base):
     description = Column(Text, nullable=True)
     hours = Column(Integer, nullable=False)
     status = Column(String, default="em_andamento")  # em_andamento / concluido
+    score = Column(String, nullable=True)  # PÉSSIMO → JDM MASTER
     conta_id = Column(Integer, ForeignKey("contas.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
 
     conta = relationship("Conta")
 
