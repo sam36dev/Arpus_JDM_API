@@ -47,7 +47,7 @@ def create_admin(payload: AdminCreate, db: Session = Depends(get_db), _super=Dep
 
 
 @router.post("/migrate-admin-role")
-def migrate_admin_role(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def migrate_admin_role(db: Session = Depends(get_db)):
     try:
         db.execute(text("ALTER TABLE admin_users ADD COLUMN role VARCHAR DEFAULT 'super'"))
         db.commit()
