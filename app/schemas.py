@@ -82,6 +82,22 @@ class CollectionCreate(BaseModel):
     card_ids: list[int] = []
 
 
+class CardOutLight(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    rarity_id: str
+    rarity: RarityOut
+
+class CollectionListOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    description: Optional[str] = None
+    image: Optional[str] = None
+    created_at: datetime
+    cards: list[CardOutLight] = []
+
 class CollectionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

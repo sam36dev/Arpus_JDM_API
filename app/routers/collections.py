@@ -8,7 +8,7 @@ from ..database import get_db
 router = APIRouter(prefix="/collections", tags=["collections"])
 
 
-@router.get("", response_model=list[schemas.CollectionOut])
+@router.get("", response_model=list[schemas.CollectionListOut])
 def list_collections(db: Session = Depends(get_db)):
     return db.query(models.Collection).order_by(models.Collection.created_at.desc()).all()
 
