@@ -20,7 +20,12 @@ def draw_rarity(db: Session, allow_lendaria: bool = True, force_min_rarity: str 
 
 
 def draw_card(db: Session, rarity: models.Rarity) -> models.Card | None:
-    cards = db.query(models.Card).filter(models.Card.rarity_id == rarity.id).all()
+    cards = (
+        db.query(models.Card)
+        .filter(models.Card.rarity_id == rarity.id)
+        .filter(models.Card.collections.any())
+        .all()
+    )
     if not cards:
         return None
     return random.choice(cards)
