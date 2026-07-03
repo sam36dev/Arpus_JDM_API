@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
+from sqlalchemy import func
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -48,7 +49,7 @@ def get_current_admin(
     except JWTError:
         raise credentials_exception
 
-    admin = db.query(AdminUser).filter(AdminUser.email == email).first()
+    admin = db.query(AdminUser).filter(func.lower(AdminUser.email) == email.lower()).first()
     if admin is None:
         raise credentials_exception
     return admin

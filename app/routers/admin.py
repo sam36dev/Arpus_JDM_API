@@ -2,7 +2,7 @@ import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.post("/login", response_model=schemas.Token)
 def login(payload: schemas.AdminLogin, db: Session = Depends(get_db)):
-    admin = db.query(models.AdminUser).filter(models.AdminUser.email == payload.email).first()
+    admin = db.query(models.AdminUser).filter(func.lower(models.AdminUser.email) == payload.email.lower()).first()
     if not admin or not verify_password(payload.password, admin.hashed_password):
         raise HTTPException(401, "Email ou senha inválidos")
     token = create_access_token({"sub": admin.email, "type": "admin"})
