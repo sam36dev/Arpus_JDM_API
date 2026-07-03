@@ -38,34 +38,25 @@ def _pct_to_score(pct: float) -> str:
 
 @router.get("/me")
 def me(admin: models.AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
-    # Média dos %s de todos os chamados concluídos
+    # Auto-concluir vencidos antes de calcular score
+    from .chamados import _auto_conclude as _ac
+    active = db.query(models.Chamado).filter(
+        models.Chamado.status.in_(["em_andamento", "aberto"])
+    ).all()
+    _ac(db, active)
+
+    # Média dos índices de score de todos os chamados concluídos
+    score_order = ["JDM MASTER", "EXCELENTE", "BOM", "MEDIANO", "RUIM", "PÉSSIMO"]
     concluded = (
         db.query(models.Chamado)
-        .filter(models.Chamado.status == "concluido", models.Chamado.score.isnot(None))
+        .filter(models.Chamado.status == "concluido", models.Chamado.score.in_(score_order))
         .all()
     )
     if concluded:
-        score_order = ["JDM MASTER", "EXCELENTE", "BOM", "MEDIANO", "RUIM", "PÉSSIMO"]
-        scores = [c.score for c in concluded if c.score in score_order]
-        if scores:
-            avg_idx = sum(score_order.index(s) for s in scores) / len(scores)
-            score = score_order[round(avg_idx)]
-        else:
-            score = None
+        avg_idx = sum(score_order.index(c.score) for c in concluded) / len(concluded)
+        score = score_order[round(avg_idx)]
     else:
-        # Nenhum concluído: calcula ao vivo a partir dos chamados em aberto
-        active = db.query(models.Chamado).filter(
-            models.Chamado.status.in_(["em_andamento", "aberto"])
-        ).all()
-        if active:
-            pcts = []
-            for c in active:
-                total = c.hours * 3600
-                elapsed = (datetime.utcnow() - c.created_at).total_seconds()
-                pcts.append(((total - elapsed) / total) * 100)
-            score = _pct_to_score(sum(pcts) / len(pcts))
-        else:
-            score = None
+        score = None
     return {"email": admin.email, "role": admin.role or "super", "score": score}
 
 
