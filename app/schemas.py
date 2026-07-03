@@ -235,3 +235,10 @@ class CustomerCardOut(BaseModel):
     rarity_label: str
     rarity_color: str
     quantity: int
+
+class TradeCardIn(BaseModel):
+    card_id: int
+
+class TradeCardOut(BaseModel):
+    order_id: int
+    pack_name: str

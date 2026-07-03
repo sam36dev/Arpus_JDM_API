@@ -67,3 +67,41 @@ def my_cards(
         by_card[card.id]["quantity"] += 1
 
     return list(by_card.values())
+
+
+@router.post("/me/trade-card", response_model=schemas.TradeCardOut)
+def trade_card(
+    payload: schemas.TradeCardIn,
+    db: Session = Depends(get_db),
+    customer: models.Customer = Depends(get_current_customer),
+):
+    pulls = (
+        db.query(models.CardPull)
+        .join(models.OrderItem, models.CardPull.order_item_id == models.OrderItem.id)
+        .join(models.Order, models.OrderItem.order_id == models.Order.id)
+        .filter(models.Order.customer_id == customer.id)
+        .filter(models.CardPull.card_id == payload.card_id)
+        .all()
+    )
+    if len(pulls) < 4:
+        raise HTTPException(400, "Você precisa de pelo menos 4 cópias para trocar")
+
+    for pull in pulls[:3]:
+        db.delete(pull)
+
+    pack = (
+        db.query(models.Product)
+        .filter(models.Product.is_pack == True)
+        .order_by(models.Product.price)
+        .first()
+    )
+    if not pack:
+        raise HTTPException(404, "Nenhum pacote disponível para troca")
+
+    order = models.Order(status="pendente", total=0, customer_id=customer.id)
+    db.add(order)
+    db.flush()
+    db.add(models.OrderItem(order_id=order.id, product_id=pack.id, quantity=1, unit_price=0))
+    db.commit()
+
+    return {"order_id": order.id, "pack_name": pack.name}
