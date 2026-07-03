@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
@@ -38,6 +38,20 @@ def _out(c: models.Chamado) -> dict:
     }
 
 
+def _auto_conclude(db: Session, rows: list) -> None:
+    now = datetime.utcnow()
+    changed = False
+    for c in rows:
+        if c.status in EM_ANDAMENTO:
+            deadline = c.created_at.replace(tzinfo=None) + timedelta(hours=c.hours)
+            if now >= deadline:
+                c.status = "concluido"
+                c.score = _score(c.created_at, c.hours)
+                c.completed_at = now
+                changed = True
+    if changed:
+        db.commit()
+
 @router.get("", response_model=list[schemas.ChamadoOut])
 def list_chamados(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     rows = (
@@ -46,6 +60,7 @@ def list_chamados(db: Session = Depends(get_db), _admin=Depends(get_current_admi
         .order_by(models.Chamado.created_at.desc())
         .all()
     )
+    _auto_conclude(db, rows)
     return [_out(c) for c in rows]
 
 

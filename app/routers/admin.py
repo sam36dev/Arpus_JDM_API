@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -27,17 +28,44 @@ def login(payload: schemas.AdminLogin, db: Session = Depends(get_db)):
     return {"access_token": token}
 
 
+def _pct_to_score(pct: float) -> str:
+    if pct >= 90: return "JDM MASTER"
+    if pct >= 85: return "EXCELENTE"
+    if pct >= 70: return "BOM"
+    if pct >= 50: return "MEDIANO"
+    if pct >= 10: return "RUIM"
+    return "PÉSSIMO"
+
 @router.get("/me")
 def me(admin: models.AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
-    score = None
-    last = (
+    # Média dos %s de todos os chamados concluídos
+    concluded = (
         db.query(models.Chamado)
         .filter(models.Chamado.status == "concluido", models.Chamado.score.isnot(None))
-        .order_by(models.Chamado.completed_at.desc())
-        .first()
+        .all()
     )
-    if last:
-        score = last.score
+    if concluded:
+        score_order = ["JDM MASTER", "EXCELENTE", "BOM", "MEDIANO", "RUIM", "PÉSSIMO"]
+        scores = [c.score for c in concluded if c.score in score_order]
+        if scores:
+            avg_idx = sum(score_order.index(s) for s in scores) / len(scores)
+            score = score_order[round(avg_idx)]
+        else:
+            score = None
+    else:
+        # Nenhum concluído: calcula ao vivo a partir dos chamados em aberto
+        active = db.query(models.Chamado).filter(
+            models.Chamado.status.in_(["em_andamento", "aberto"])
+        ).all()
+        if active:
+            pcts = []
+            for c in active:
+                total = c.hours * 3600
+                elapsed = (datetime.utcnow() - c.created_at).total_seconds()
+                pcts.append(((total - elapsed) / total) * 100)
+            score = _pct_to_score(sum(pcts) / len(pcts))
+        else:
+            score = None
     return {"email": admin.email, "role": admin.role or "super", "score": score}
 
 
