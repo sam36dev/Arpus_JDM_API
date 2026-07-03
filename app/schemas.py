@@ -79,6 +79,7 @@ class CollectionCreate(BaseModel):
     name: str
     description: Optional[str] = None
     image: Optional[str] = None
+    reward_image: Optional[str] = None
     card_ids: list[int] = []
 
 
@@ -95,6 +96,7 @@ class CollectionListOut(BaseModel):
     name: str
     description: Optional[str] = None
     image: Optional[str] = None
+    reward_image: Optional[str] = None
     created_at: datetime
     cards: list[CardOutLight] = []
 
@@ -104,6 +106,7 @@ class CollectionOut(BaseModel):
     name: str
     description: Optional[str] = None
     image: Optional[str] = None
+    reward_image: Optional[str] = None
     created_at: datetime
     cards: list[CardOut] = []
 

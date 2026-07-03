@@ -74,6 +74,17 @@ def create_admin(payload: AdminCreate, db: Session = Depends(get_db), _super=Dep
     return {"ok": True, "email": payload.email, "role": payload.role}
 
 
+@router.post("/migrate-collection-reward")
+def migrate_collection_reward(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("ALTER TABLE collections ADD COLUMN reward_image TEXT"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna reward_image adicionada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post("/migrate-product-stock")
 def migrate_product_stock(db: Session = Depends(get_db)):
     try:

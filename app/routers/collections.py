@@ -38,7 +38,8 @@ def create_collection(
     _admin: models.AdminUser = Depends(get_current_admin),
 ):
     collection = models.Collection(
-        name=payload.name, description=payload.description, image=payload.image
+        name=payload.name, description=payload.description,
+        image=payload.image, reward_image=payload.reward_image
     )
     db.add(collection)
     db.flush()
@@ -61,6 +62,7 @@ def update_collection(
     collection.name = payload.name
     collection.description = payload.description
     collection.image = payload.image
+    collection.reward_image = payload.reward_image
     _set_cards(db, collection, payload.card_ids)
     db.commit()
     db.refresh(collection)

@@ -46,6 +46,7 @@ class Collection(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     image = Column(Text, nullable=True)
+    reward_image = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     cards = relationship("Card", secondary=collection_cards, back_populates="collections")
