@@ -24,13 +24,13 @@ def register(payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
     return {"access_token": token}
 
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.CustomerLoginOut)
 def login(payload: schemas.CustomerLogin, db: Session = Depends(get_db)):
     customer = db.query(models.Customer).filter(models.Customer.email == payload.email).first()
     if not customer or not verify_password(payload.password, customer.hashed_password):
         raise HTTPException(401, "Email ou senha inválidos")
     token = create_access_token({"sub": customer.email, "type": "customer"})
-    return {"access_token": token}
+    return {"access_token": token, "name": customer.name, "email": customer.email}
 
 
 @router.get("/me", response_model=schemas.CustomerOut)

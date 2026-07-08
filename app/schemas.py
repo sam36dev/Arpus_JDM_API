@@ -192,6 +192,12 @@ class CustomerOut(BaseModel):
     name: str
     email: str
 
+class CustomerLoginOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    name: str
+    email: str
+
 
 class OrderItemCreate(BaseModel):
     product_id: int
