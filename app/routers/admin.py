@@ -21,7 +21,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/login", response_model=schemas.Token)
-@limiter.limit("5/minute")
+@limiter.limit("5/2hours")
 def login(request: Request, payload: schemas.AdminLogin, db: Session = Depends(get_db)):
     admin = db.query(models.AdminUser).filter(func.lower(models.AdminUser.email) == payload.email.lower()).first()
     if not admin or not verify_password(payload.password, admin.hashed_password):

@@ -23,7 +23,7 @@ router = APIRouter(prefix="/customers", tags=["customers"])
 
 
 @router.post("/register", response_model=schemas.CustomerLoginOut)
-@limiter.limit("3/minute")
+@limiter.limit("3/2hours")
 def register(request: Request, payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
     exists = db.query(models.Customer).filter(func.lower(models.Customer.email) == payload.email.lower()).first()
     if exists:
@@ -41,7 +41,7 @@ def register(request: Request, payload: schemas.CustomerRegister, db: Session = 
 
 
 @router.post("/login", response_model=schemas.CustomerLoginOut)
-@limiter.limit("5/minute")
+@limiter.limit("5/2hours")
 def login(request: Request, payload: schemas.CustomerLogin, db: Session = Depends(get_db)):
     customer = db.query(models.Customer).filter(func.lower(models.Customer.email) == payload.email.lower()).first()
     if not customer or not verify_password(payload.password, customer.hashed_password):
