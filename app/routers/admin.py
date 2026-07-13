@@ -74,6 +74,17 @@ def create_admin(payload: AdminCreate, db: Session = Depends(get_db), _super=Dep
     return {"ok": True, "email": payload.email, "role": payload.role}
 
 
+@router.post("/migrate-customer-plate")
+def migrate_customer_plate(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("ALTER TABLE customers ADD COLUMN plate VARCHAR UNIQUE"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna plate adicionada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post("/migrate-collection-reward")
 def migrate_collection_reward(db: Session = Depends(get_db)):
     try:

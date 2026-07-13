@@ -1,3 +1,6 @@
+import random
+import string
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -5,10 +8,19 @@ from .. import models, schemas
 from ..auth import create_access_token, get_current_customer, hash_password, verify_password
 from ..database import get_db
 
+
+def _generate_plate(db: Session) -> str:
+    while True:
+        letters = ''.join(random.choices(string.ascii_uppercase, k=3))
+        digits = ''.join(random.choices(string.digits, k=4))
+        plate = f"{letters}-{digits}"
+        if not db.query(models.Customer).filter(models.Customer.plate == plate).first():
+            return plate
+
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 
-@router.post("/register", response_model=schemas.Token)
+@router.post("/register", response_model=schemas.CustomerLoginOut)
 def register(payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
     exists = db.query(models.Customer).filter(models.Customer.email == payload.email).first()
     if exists:
@@ -17,11 +29,12 @@ def register(payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
         name=payload.name,
         email=payload.email,
         hashed_password=hash_password(payload.password),
+        plate=_generate_plate(db),
     )
     db.add(customer)
     db.commit()
     token = create_access_token({"sub": customer.email, "type": "customer"})
-    return {"access_token": token}
+    return {"access_token": token, "name": customer.name, "email": customer.email, "plate": customer.plate}
 
 
 @router.post("/login", response_model=schemas.CustomerLoginOut)
@@ -29,8 +42,11 @@ def login(payload: schemas.CustomerLogin, db: Session = Depends(get_db)):
     customer = db.query(models.Customer).filter(models.Customer.email == payload.email).first()
     if not customer or not verify_password(payload.password, customer.hashed_password):
         raise HTTPException(401, "Email ou senha inválidos")
+    if not customer.plate:
+        customer.plate = _generate_plate(db)
+        db.commit()
     token = create_access_token({"sub": customer.email, "type": "customer"})
-    return {"access_token": token, "name": customer.name, "email": customer.email}
+    return {"access_token": token, "name": customer.name, "email": customer.email, "plate": customer.plate}
 
 
 @router.get("/me", response_model=schemas.CustomerOut)

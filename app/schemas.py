@@ -191,12 +191,14 @@ class CustomerOut(BaseModel):
     id: int
     name: str
     email: str
+    plate: Optional[str] = None
 
 class CustomerLoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     name: str
     email: str
+    plate: Optional[str] = None
 
 
 class OrderItemCreate(BaseModel):
