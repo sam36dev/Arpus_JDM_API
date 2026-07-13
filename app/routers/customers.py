@@ -103,8 +103,8 @@ def trade_card(
         .filter(models.CardPull.card_id == payload.card_id)
         .all()
     )
-    if len(pulls) < 4:
-        raise HTTPException(400, "Você precisa de 4 cópias para trocar")
+    if len(pulls) < 5:
+        raise HTTPException(400, "Você precisa de 5 cópias para trocar")
 
     for pull in pulls[:4]:
         db.delete(pull)
