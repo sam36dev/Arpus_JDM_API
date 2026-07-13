@@ -2,6 +2,7 @@ import random
 import string
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/customers", tags=["customers"])
 
 @router.post("/register", response_model=schemas.CustomerLoginOut)
 def register(payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
-    exists = db.query(models.Customer).filter(models.Customer.email == payload.email).first()
+    exists = db.query(models.Customer).filter(func.lower(models.Customer.email) == payload.email.lower()).first()
     if exists:
         raise HTTPException(400, "Já existe uma conta com este email")
     customer = models.Customer(
@@ -39,7 +40,7 @@ def register(payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=schemas.CustomerLoginOut)
 def login(payload: schemas.CustomerLogin, db: Session = Depends(get_db)):
-    customer = db.query(models.Customer).filter(models.Customer.email == payload.email).first()
+    customer = db.query(models.Customer).filter(func.lower(models.Customer.email) == payload.email.lower()).first()
     if not customer or not verify_password(payload.password, customer.hashed_password):
         raise HTTPException(401, "Email ou senha inválidos")
     if not customer.plate:
