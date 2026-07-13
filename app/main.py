@@ -1,9 +1,12 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from .database import Base, SessionLocal, engine
+from .limiter import limiter
 from .routers import admin, cards, chamados, collections, contas, customers, orders, products, rarities
 from .seed_data import seed_initial_data
 
@@ -16,6 +19,14 @@ finally:
     db.close()
 
 app = FastAPI(title="ARPUS JDM API")
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Muitas tentativas. Aguarde um momento e tente novamente."},
+    )
 
 default_origins = "http://localhost:5173,http://127.0.0.1:5173"
 cors_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")

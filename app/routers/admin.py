@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..auth import create_access_token, get_current_admin, get_current_super_admin, hash_password, verify_password
 from ..database import get_db
+from ..limiter import limiter
 
 
 class AdminCreate(BaseModel):
@@ -20,7 +21,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/login", response_model=schemas.Token)
-def login(payload: schemas.AdminLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, payload: schemas.AdminLogin, db: Session = Depends(get_db)):
     admin = db.query(models.AdminUser).filter(func.lower(models.AdminUser.email) == payload.email.lower()).first()
     if not admin or not verify_password(payload.password, admin.hashed_password):
         raise HTTPException(401, "Email ou senha inválidos")

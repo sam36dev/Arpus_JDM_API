@@ -1,13 +1,14 @@
 import random
 import string
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..auth import create_access_token, get_current_customer, hash_password, verify_password
 from ..database import get_db
+from ..limiter import limiter
 
 
 def _generate_plate(db: Session) -> str:
@@ -22,7 +23,8 @@ router = APIRouter(prefix="/customers", tags=["customers"])
 
 
 @router.post("/register", response_model=schemas.CustomerLoginOut)
-def register(payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def register(request: Request, payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
     exists = db.query(models.Customer).filter(func.lower(models.Customer.email) == payload.email.lower()).first()
     if exists:
         raise HTTPException(400, "Já existe uma conta com este email")
@@ -39,7 +41,8 @@ def register(payload: schemas.CustomerRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=schemas.CustomerLoginOut)
-def login(payload: schemas.CustomerLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, payload: schemas.CustomerLogin, db: Session = Depends(get_db)):
     customer = db.query(models.Customer).filter(func.lower(models.Customer.email) == payload.email.lower()).first()
     if not customer or not verify_password(payload.password, customer.hashed_password):
         raise HTTPException(401, "Email ou senha inválidos")
