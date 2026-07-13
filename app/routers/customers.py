@@ -104,12 +104,16 @@ def trade_card(
         .all()
     )
     if len(pulls) < 4:
-        raise HTTPException(400, "Você precisa de pelo menos 4 cópias para trocar")
+        raise HTTPException(400, "Você precisa de 4 cópias para trocar")
 
-    for pull in pulls[:3]:
+    for pull in pulls[:4]:
         db.delete(pull)
 
     pack = (
+        db.query(models.Product)
+        .filter(models.Product.is_pack == True, models.Product.name == "Pack Solo")
+        .first()
+    ) or (
         db.query(models.Product)
         .filter(models.Product.is_pack == True)
         .order_by(models.Product.price)
