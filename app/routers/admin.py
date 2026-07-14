@@ -51,12 +51,16 @@ def me(admin: models.AdminUser = Depends(get_current_admin), db: Session = Depen
     score_order = ["JDM MASTER", "EXCELENTE", "BOM", "MEDIANO", "RUIM", "PÉSSIMO"]
     concluded = (
         db.query(models.Chamado)
-        .filter(models.Chamado.status == "concluido", models.Chamado.score.in_(score_order))
+        .filter(models.Chamado.status == "concluido")
         .all()
     )
     if concluded:
-        avg_idx = sum(score_order.index(c.score) for c in concluded) / len(concluded)
-        score = score_order[round(avg_idx)]
+        # Chamados sem score (histórico anterior à migração) contam como PÉSSIMO
+        indices = [
+            score_order.index(c.score) if c.score in score_order else 5
+            for c in concluded
+        ]
+        score = score_order[round(sum(indices) / len(indices))]
     else:
         score = None
     return {"email": admin.email, "role": admin.role or "super", "score": score}
