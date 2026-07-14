@@ -218,6 +218,25 @@ def seed_packs(db: Session = Depends(get_db), _admin: models.AdminUser = Depends
     return {"created": created}
 
 
+@router.post("/migrate-collection-claims")
+def migrate_collection_claims(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    try:
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS collection_claims (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER REFERENCES customers(id),
+                collection_id INTEGER REFERENCES collections(id),
+                address TEXT NOT NULL,
+                claimed_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        db.commit()
+        return {"ok": True, "msg": "Tabela collection_claims criada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post("/bootstrap")
 def bootstrap(payload: schemas.AdminBootstrap, db: Session = Depends(get_db)):
     """Cria o primeiro admin. Exige ADMIN_BOOTSTRAP_KEY (env var) e só

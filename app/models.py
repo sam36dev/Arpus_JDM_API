@@ -182,3 +182,16 @@ class CardPull(Base):
 
     order_item = relationship("OrderItem", back_populates="pulls")
     card = relationship("Card")
+
+
+class CollectionClaim(Base):
+    __tablename__ = "collection_claims"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    collection_id = Column(Integer, ForeignKey("collections.id"), nullable=False)
+    address = Column(Text, nullable=False)
+    claimed_at = Column(DateTime, default=datetime.utcnow)
+
+    customer = relationship("Customer")
+    collection = relationship("Collection")

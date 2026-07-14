@@ -129,3 +129,62 @@ def trade_card(
     db.commit()
 
     return {"order_id": order.id, "pack_name": pack.name}
+
+
+@router.get("/me/collections/claimed")
+def my_claimed_collections(
+    db: Session = Depends(get_db),
+    customer: models.Customer = Depends(get_current_customer),
+):
+    claims = db.query(models.CollectionClaim).filter(
+        models.CollectionClaim.customer_id == customer.id
+    ).all()
+    return [c.collection_id for c in claims]
+
+
+@router.post("/me/collections/{collection_id}/claim")
+def claim_collection(
+    collection_id: int,
+    payload: schemas.ClaimIn,
+    db: Session = Depends(get_db),
+    customer: models.Customer = Depends(get_current_customer),
+):
+    collection = db.get(models.Collection, collection_id)
+    if not collection:
+        raise HTTPException(404, "Coleção não encontrada")
+
+    existing = db.query(models.CollectionClaim).filter(
+        models.CollectionClaim.customer_id == customer.id,
+        models.CollectionClaim.collection_id == collection_id,
+    ).first()
+    if existing:
+        raise HTTPException(400, "Você já resgatou a recompensa desta coleção")
+
+    my_card_ids = {
+        pull.card_id
+        for pull in db.query(models.CardPull)
+        .join(models.OrderItem, models.CardPull.order_item_id == models.OrderItem.id)
+        .join(models.Order, models.OrderItem.order_id == models.Order.id)
+        .filter(models.Order.customer_id == customer.id)
+        .all()
+    }
+    collection_card_ids = {c.id for c in collection.cards}
+    if not collection_card_ids.issubset(my_card_ids):
+        raise HTTPException(400, "Você ainda não completou esta coleção")
+
+    db.add(models.CollectionClaim(
+        customer_id=customer.id,
+        collection_id=collection_id,
+        address=payload.address,
+    ))
+
+    plate = customer.plate or "sem placa"
+    db.add(models.Chamado(
+        title=f"{customer.name} da placa {plate} completou a coleção {collection.name}",
+        description=f"Endereço de entrega:\n{payload.address}",
+        hours=96,
+        status="aberto",
+    ))
+
+    db.commit()
+    return {"ok": True}

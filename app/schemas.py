@@ -253,3 +253,6 @@ class TradeCardIn(BaseModel):
 class TradeCardOut(BaseModel):
     order_id: int
     pack_name: str
+
+class ClaimIn(BaseModel):
+    address: str
