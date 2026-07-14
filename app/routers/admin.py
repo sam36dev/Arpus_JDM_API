@@ -222,6 +222,33 @@ def seed_packs(db: Session = Depends(get_db), _admin: models.AdminUser = Depends
     return {"created": created}
 
 
+@router.post("/contas/merge-duplicates")
+def merge_duplicate_contas(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    """Junta contas com o mesmo nome: mantém a mais antiga, reatribui chamados e soma valores."""
+    from collections import defaultdict
+    all_contas = db.query(models.Conta).order_by(models.Conta.id).all()
+    by_name = defaultdict(list)
+    for c in all_contas:
+        by_name[c.buyer_name.strip().lower()].append(c)
+
+    merged = 0
+    for name, group in by_name.items():
+        if len(group) <= 1:
+            continue
+        keep = group[0]  # mais antiga (menor id)
+        duplicates = group[1:]
+        for dup in duplicates:
+            # Reatribui chamados
+            db.query(models.Chamado).filter(models.Chamado.conta_id == dup.id).update({"conta_id": keep.id})
+            # Soma valores
+            keep.transferred += dup.transferred
+            keep.spent += dup.spent
+            db.delete(dup)
+            merged += 1
+    db.commit()
+    return {"ok": True, "merged": merged}
+
+
 @router.post("/migrate-collection-claims")
 def migrate_collection_claims(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
     try:
