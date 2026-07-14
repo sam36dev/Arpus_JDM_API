@@ -62,6 +62,22 @@ def me(admin: models.AdminUser = Depends(get_current_admin), db: Session = Depen
     return {"email": admin.email, "role": admin.role or "super", "score": score}
 
 
+@router.delete("/customers/{email}/pulls")
+def clear_customer_pulls(email: str, db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    customer = db.query(models.Customer).filter(func.lower(models.Customer.email) == email.lower()).first()
+    if not customer:
+        raise HTTPException(404, "Cliente não encontrado")
+    orders = db.query(models.Order).filter(models.Order.customer_id == customer.id).all()
+    deleted = 0
+    for order in orders:
+        for item in order.items:
+            for pull in item.pulls:
+                db.delete(pull)
+                deleted += 1
+    db.commit()
+    return {"ok": True, "deleted": deleted}
+
+
 @router.post("/create-admin")
 def create_admin(payload: AdminCreate, db: Session = Depends(get_db), _super=Depends(get_current_super_admin)):
     if db.query(models.AdminUser).filter(models.AdminUser.email == payload.email).first():
