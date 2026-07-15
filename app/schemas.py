@@ -156,6 +156,7 @@ class ChamadoOut(BaseModel):
     conta_id: Optional[int] = None
     conta_name: Optional[str] = None
     created_at: datetime
+    scheduled_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
 

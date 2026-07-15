@@ -10,10 +10,30 @@ router = APIRouter(prefix="/chamados", tags=["chamados"])
 
 EM_ANDAMENTO = ("aberto", "em_andamento")
 
+BR_OFFSET = timedelta(hours=-3)
 
-def _score(created_at: datetime, hours: int) -> str:
+
+def _next_schedule_utc() -> datetime:
+    """Calcula o próximo horário de entrega (08:00 ou 15:00 horário de Brasília)."""
+    now_br = datetime.utcnow() + BR_OFFSET
+    hour = now_br.hour
+    if hour < 8:
+        sched_br = now_br.replace(hour=8, minute=0, second=0, microsecond=0)
+    elif hour < 15:
+        sched_br = now_br.replace(hour=15, minute=0, second=0, microsecond=0)
+    else:
+        sched_br = (now_br + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
+    return sched_br - BR_OFFSET  # converte de volta pra UTC
+
+
+def _start(c: models.Chamado) -> datetime:
+    """Ponto de início do countdown: scheduled_at se existir, senão created_at."""
+    return (c.scheduled_at or c.created_at).replace(tzinfo=None)
+
+
+def _score(start_at: datetime, hours: int) -> str:
     total = hours * 3600
-    elapsed = (datetime.utcnow() - created_at).total_seconds()
+    elapsed = (datetime.utcnow() - start_at.replace(tzinfo=None)).total_seconds()
     pct = ((total - elapsed) / total) * 100
     if pct >= 90: return "JDM MASTER"
     if pct >= 85: return "EXCELENTE"
@@ -34,6 +54,7 @@ def _out(c: models.Chamado) -> dict:
         "conta_id": c.conta_id,
         "conta_name": c.conta.buyer_name if c.conta else None,
         "created_at": c.created_at,
+        "scheduled_at": c.scheduled_at,
         "completed_at": c.completed_at,
     }
 
@@ -43,10 +64,14 @@ def _auto_conclude(db: Session, rows: list) -> None:
     changed = False
     for c in rows:
         if c.status in EM_ANDAMENTO:
-            deadline = c.created_at.replace(tzinfo=None) + timedelta(hours=c.hours)
+            start = _start(c)
+            # Só processa se o scheduled_at já passou
+            if c.scheduled_at and c.scheduled_at.replace(tzinfo=None) > now:
+                continue
+            deadline = start + timedelta(hours=c.hours)
             if now >= deadline:
                 c.status = "concluido"
-                c.score = _score(c.created_at, c.hours)
+                c.score = _score(start, c.hours)
                 c.completed_at = now
                 changed = True
     if changed:
@@ -72,7 +97,7 @@ def count_em_andamento(db: Session = Depends(get_db), _admin=Depends(get_current
 
 @router.post("", response_model=schemas.ChamadoOut)
 def create_chamado(payload: schemas.ChamadoCreate, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    chamado = models.Chamado(**payload.model_dump())
+    chamado = models.Chamado(**payload.model_dump(), scheduled_at=_next_schedule_utc())
     db.add(chamado)
     db.commit()
     db.refresh(chamado)
@@ -88,7 +113,7 @@ def update_chamado(chamado_id: int, payload: schemas.ChamadoUpdate, db: Session 
         raise HTTPException(404, "Chamado não encontrado")
     data = payload.model_dump(exclude_none=True)
     if data.get("status") == "concluido" and chamado.status != "concluido":
-        chamado.score = _score(chamado.created_at, chamado.hours)
+        chamado.score = _score(_start(chamado), chamado.hours)
         chamado.completed_at = datetime.utcnow()
     elif data.get("status") in ("aberto", "em_andamento"):
         chamado.score = None

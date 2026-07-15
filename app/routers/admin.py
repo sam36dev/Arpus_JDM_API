@@ -249,6 +249,17 @@ def merge_duplicate_contas(db: Session = Depends(get_db), _admin: models.AdminUs
     return {"ok": True, "merged": merged}
 
 
+@router.post("/migrate-chamado-scheduled")
+def migrate_chamado_scheduled(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    try:
+        db.execute(text("ALTER TABLE chamados ADD COLUMN scheduled_at TIMESTAMP"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna scheduled_at adicionada"}
+    except Exception as e:
+        db.rollback()
+        return {"ok": False, "msg": str(e)}
+
+
 @router.post("/migrate-collection-claims")
 def migrate_collection_claims(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
     try:

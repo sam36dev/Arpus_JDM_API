@@ -107,6 +107,7 @@ class Chamado(Base):
     score = Column(String, nullable=True)  # PÉSSIMO → JDM MASTER
     conta_id = Column(Integer, ForeignKey("contas.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    scheduled_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
 
     conta = relationship("Conta")
