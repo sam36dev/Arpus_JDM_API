@@ -31,9 +31,16 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 default_origins = "http://localhost:5173,http://127.0.0.1:5173"
 cors_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")
 
+# Domínios fixos sempre permitidos
+FIXED_ORIGINS = [
+    "https://arpusjdm.com",
+    "https://www.arpusjdm.com",
+]
+all_origins = list(set(cors_origins + FIXED_ORIGINS))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=all_origins,
     allow_origin_regex=r"https://(.*\.vercel\.app|.*\.arpusjdm\.com|arpusjdm\.com)",
     allow_credentials=True,
     allow_methods=["*"],
