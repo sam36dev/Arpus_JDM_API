@@ -5,20 +5,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
+from contextlib import asynccontextmanager
+
 from .database import Base, SessionLocal, engine
 from .limiter import limiter
 from .routers import admin, cards, chamados, collections, contas, customers, orders, products, rarities
 from .seed_data import seed_initial_data
 
-Base.metadata.create_all(bind=engine)
 
-db = SessionLocal()
-try:
-    seed_initial_data(db)
-finally:
-    db.close()
+@asynccontextmanager
+async def lifespan(app):
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_initial_data(db)
+    finally:
+        db.close()
+    yield
 
-app = FastAPI(title="ARPUS JDM API")
+
+app = FastAPI(title="ARPUS JDM API", lifespan=lifespan)
 app.state.limiter = limiter
 
 @app.exception_handler(RateLimitExceeded)
@@ -31,16 +37,9 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 default_origins = "http://localhost:5173,http://127.0.0.1:5173"
 cors_origins = os.getenv("CORS_ORIGINS", default_origins).split(",")
 
-# Domínios fixos sempre permitidos
-FIXED_ORIGINS = [
-    "https://arpusjdm.com",
-    "https://www.arpusjdm.com",
-]
-all_origins = list(set(cors_origins + FIXED_ORIGINS))
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=all_origins,
+    allow_origins=cors_origins,
     allow_origin_regex=r"https://(.*\.vercel\.app|.*\.arpusjdm\.com|arpusjdm\.com)",
     allow_credentials=True,
     allow_methods=["*"],
