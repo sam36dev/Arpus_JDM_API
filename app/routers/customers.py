@@ -13,10 +13,24 @@ from .. import models, schemas
 from ..auth import create_access_token, get_current_customer, hash_password, verify_password
 from ..database import get_db
 from ..limiter import limiter
+from ..routers.orders import _finalize_order
 
 
 class GoogleAuthIn(BaseModel):
     credential: str
+
+
+def _valid_cpf(cpf: str) -> bool:
+    digits = ''.join(c for c in cpf if c.isdigit())
+    if len(digits) != 11 or len(set(digits)) == 1:
+        return False
+    total = sum(int(digits[i]) * (10 - i) for i in range(9))
+    d1 = (total * 10 % 11) % 10
+    if d1 != int(digits[9]):
+        return False
+    total = sum(int(digits[i]) * (11 - i) for i in range(10))
+    d2 = (total * 10 % 11) % 10
+    return d2 == int(digits[10])
 
 
 def _generate_plate(db: Session) -> str:
@@ -38,6 +52,7 @@ def register(request: Request, payload: schemas.CustomerRegister, db: Session = 
         raise HTTPException(400, "Já existe uma conta com este email")
     customer = models.Customer(
         name=payload.name,
+        last_name=payload.last_name,
         email=payload.email,
         hashed_password=hash_password(payload.password),
         plate=_generate_plate(db),
@@ -45,7 +60,7 @@ def register(request: Request, payload: schemas.CustomerRegister, db: Session = 
     db.add(customer)
     db.commit()
     token = create_access_token({"sub": customer.email, "type": "customer"})
-    return {"access_token": token, "name": customer.name, "email": customer.email, "plate": customer.plate}
+    return {"access_token": token, "name": customer.name, "last_name": customer.last_name, "email": customer.email, "plate": customer.plate, "address_cep": None}
 
 
 @router.post("/login", response_model=schemas.CustomerLoginOut)
@@ -58,7 +73,7 @@ def login(request: Request, payload: schemas.CustomerLogin, db: Session = Depend
         customer.plate = _generate_plate(db)
         db.commit()
     token = create_access_token({"sub": customer.email, "type": "customer"})
-    return {"access_token": token, "name": customer.name, "email": customer.email, "plate": customer.plate}
+    return {"access_token": token, "name": customer.name, "last_name": customer.last_name, "email": customer.email, "plate": customer.plate, "address_cep": customer.address_cep}
 
 
 @router.post("/auth/google", response_model=schemas.CustomerLoginOut)
@@ -163,6 +178,61 @@ def trade_card(
     db.commit()
 
     return {"order_id": order.id, "pack_name": pack.name}
+
+
+@router.post("/me/complete-profile")
+def complete_profile(
+    payload: schemas.CompleteProfileIn,
+    db: Session = Depends(get_db),
+    customer: models.Customer = Depends(get_current_customer),
+):
+    if not _valid_cpf(payload.cpf):
+        raise HTTPException(400, "CPF inválido")
+    digits = ''.join(c for c in payload.cpf if c.isdigit())
+    cpf_conflict = db.query(models.Customer).filter(
+        models.Customer.cpf == digits,
+        models.Customer.id != customer.id,
+    ).first()
+    if cpf_conflict:
+        raise HTTPException(400, "CPF já cadastrado")
+
+    is_first_completion = customer.address_cep is None
+
+    customer.phone = payload.phone
+    customer.cpf = digits
+    customer.birth_date = payload.birth_date
+    customer.address_cep = payload.address_cep
+    customer.address_street = payload.address_street
+    customer.address_number = payload.address_number
+    customer.address_complement = payload.address_complement
+    customer.address_neighborhood = payload.address_neighborhood
+    customer.address_city = payload.address_city
+    customer.address_state = payload.address_state
+    db.commit()
+
+    order_id = None
+    if is_first_completion:
+        pack = (
+            db.query(models.Product)
+            .filter(models.Product.is_pack == True, models.Product.name == "Pack Solo")
+            .first()
+        ) or (
+            db.query(models.Product)
+            .filter(models.Product.is_pack == True)
+            .order_by(models.Product.price)
+            .first()
+        )
+        if pack:
+            order = models.Order(status="pendente", total=0, customer_id=customer.id)
+            db.add(order)
+            db.flush()
+            db.add(models.OrderItem(order_id=order.id, product_id=pack.id, quantity=1, unit_price=0))
+            db.commit()
+            db.refresh(order)
+            _finalize_order(db, order)
+            order_id = order.id
+
+    return {"ok": True, "order_id": order_id}
 
 
 @router.get("/me/collections/claimed")

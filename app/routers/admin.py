@@ -279,6 +279,34 @@ def migrate_collection_claims(db: Session = Depends(get_db), _admin: models.Admi
         return {"ok": False, "msg": str(e)}
 
 
+@router.post("/migrate-customer-profile")
+def migrate_customer_profile(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    """Adiciona as colunas de perfil completo à tabela customers."""
+    columns = [
+        ("last_name", "ALTER TABLE customers ADD COLUMN last_name VARCHAR"),
+        ("phone", "ALTER TABLE customers ADD COLUMN phone VARCHAR"),
+        ("cpf", "ALTER TABLE customers ADD COLUMN cpf VARCHAR UNIQUE"),
+        ("birth_date", "ALTER TABLE customers ADD COLUMN birth_date VARCHAR"),
+        ("address_cep", "ALTER TABLE customers ADD COLUMN address_cep VARCHAR"),
+        ("address_street", "ALTER TABLE customers ADD COLUMN address_street VARCHAR"),
+        ("address_number", "ALTER TABLE customers ADD COLUMN address_number VARCHAR"),
+        ("address_complement", "ALTER TABLE customers ADD COLUMN address_complement VARCHAR"),
+        ("address_neighborhood", "ALTER TABLE customers ADD COLUMN address_neighborhood VARCHAR"),
+        ("address_city", "ALTER TABLE customers ADD COLUMN address_city VARCHAR"),
+        ("address_state", "ALTER TABLE customers ADD COLUMN address_state VARCHAR"),
+    ]
+    results = []
+    for col, ddl in columns:
+        try:
+            db.execute(text(ddl))
+            db.commit()
+            results.append(f"{col}: ok")
+        except Exception as e:
+            db.rollback()
+            results.append(f"{col}: {e}")
+    return {"results": results}
+
+
 @router.post("/bootstrap")
 def bootstrap(payload: schemas.AdminBootstrap, db: Session = Depends(get_db)):
     """Cria o primeiro admin. Exige ADMIN_BOOTSTRAP_KEY (env var) e só

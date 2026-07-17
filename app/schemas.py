@@ -178,6 +178,7 @@ class Token(BaseModel):
 
 class CustomerRegister(BaseModel):
     name: str
+    last_name: Optional[str] = None
     email: str
     password: str
 
@@ -187,19 +188,45 @@ class CustomerLogin(BaseModel):
     password: str
 
 
+class CompleteProfileIn(BaseModel):
+    phone: str
+    cpf: str
+    birth_date: str
+    address_cep: str
+    address_street: str
+    address_number: str
+    address_complement: Optional[str] = None
+    address_neighborhood: str
+    address_city: str
+    address_state: str
+
+
 class CustomerOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
+    last_name: Optional[str] = None
     email: str
     plate: Optional[str] = None
+    phone: Optional[str] = None
+    cpf: Optional[str] = None
+    birth_date: Optional[str] = None
+    address_cep: Optional[str] = None
+    address_street: Optional[str] = None
+    address_number: Optional[str] = None
+    address_complement: Optional[str] = None
+    address_neighborhood: Optional[str] = None
+    address_city: Optional[str] = None
+    address_state: Optional[str] = None
 
 class CustomerLoginOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     name: str
+    last_name: Optional[str] = None
     email: str
     plate: Optional[str] = None
+    address_cep: Optional[str] = None
 
 
 class OrderItemCreate(BaseModel):

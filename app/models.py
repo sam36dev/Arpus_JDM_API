@@ -139,9 +139,20 @@ class Customer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    last_name = Column(String, nullable=True)
     email = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     plate = Column(String, unique=True, nullable=True)
+    phone = Column(String, nullable=True)
+    cpf = Column(String, unique=True, nullable=True)
+    birth_date = Column(String, nullable=True)
+    address_cep = Column(String, nullable=True)
+    address_street = Column(String, nullable=True)
+    address_number = Column(String, nullable=True)
+    address_complement = Column(String, nullable=True)
+    address_neighborhood = Column(String, nullable=True)
+    address_city = Column(String, nullable=True)
+    address_state = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
