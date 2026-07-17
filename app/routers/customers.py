@@ -1,7 +1,11 @@
+import json
 import random
+import secrets
 import string
+import urllib.request
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -9,6 +13,10 @@ from .. import models, schemas
 from ..auth import create_access_token, get_current_customer, hash_password, verify_password
 from ..database import get_db
 from ..limiter import limiter
+
+
+class GoogleAuthIn(BaseModel):
+    credential: str
 
 
 def _generate_plate(db: Session) -> str:
@@ -48,6 +56,32 @@ def login(request: Request, payload: schemas.CustomerLogin, db: Session = Depend
         raise HTTPException(401, "Email ou senha inválidos")
     if not customer.plate:
         customer.plate = _generate_plate(db)
+        db.commit()
+    token = create_access_token({"sub": customer.email, "type": "customer"})
+    return {"access_token": token, "name": customer.name, "email": customer.email, "plate": customer.plate}
+
+
+@router.post("/auth/google", response_model=schemas.CustomerLoginOut)
+def google_auth(payload: GoogleAuthIn, db: Session = Depends(get_db)):
+    try:
+        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={payload.credential}"
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            info = json.loads(resp.read())
+    except Exception:
+        raise HTTPException(401, "Token Google inválido")
+    email = info.get("email")
+    if not email or info.get("email_verified") != "true":
+        raise HTTPException(401, "Email Google não verificado")
+    name = info.get("name") or email.split("@")[0]
+    customer = db.query(models.Customer).filter(func.lower(models.Customer.email) == email.lower()).first()
+    if not customer:
+        customer = models.Customer(
+            name=name,
+            email=email,
+            hashed_password=hash_password(secrets.token_hex(32)),
+            plate=_generate_plate(db),
+        )
+        db.add(customer)
         db.commit()
     token = create_access_token({"sub": customer.email, "type": "customer"})
     return {"access_token": token, "name": customer.name, "email": customer.email, "plate": customer.plate}
