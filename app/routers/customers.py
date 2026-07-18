@@ -13,8 +13,6 @@ from .. import models, schemas
 from ..auth import create_access_token, get_current_customer, hash_password, verify_password
 from ..database import get_db
 from ..limiter import limiter
-from ..routers.orders import _finalize_order
-
 
 class GoogleAuthIn(BaseModel):
     credential: str
@@ -228,8 +226,6 @@ def complete_profile(
             db.flush()
             db.add(models.OrderItem(order_id=order.id, product_id=pack.id, quantity=1, unit_price=0))
             db.commit()
-            db.refresh(order)
-            _finalize_order(db, order)
             order_id = order.id
 
     return {"ok": True, "order_id": order_id}
