@@ -58,7 +58,11 @@ def create_order(
         product = db.get(models.Product, item.product_id)
         if not product:
             raise HTTPException(404, f"Produto {item.product_id} não encontrado")
+        if product.stock is not None and product.stock < item.quantity:
+            raise HTTPException(400, f"Estoque insuficiente para '{product.name}' (disponível: {product.stock})")
         total += product.price * item.quantity
+        if product.stock is not None:
+            product.stock -= item.quantity
         order_items.append(
             models.OrderItem(
                 product_id=product.id,

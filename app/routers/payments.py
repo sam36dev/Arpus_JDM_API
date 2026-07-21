@@ -91,6 +91,10 @@ def payment_checkout(
         product = db.get(models.Product, ci.product_id)
         if not product:
             raise HTTPException(404, f"Produto {ci.product_id} não encontrado")
+        if product.stock is not None and product.stock < ci.quantity:
+            raise HTTPException(400, f"Estoque insuficiente para '{product.name}' (disponível: {product.stock})")
+        if product.stock is not None:
+            product.stock -= ci.quantity
         if product.is_pack:
             for _ in range(ci.quantity):
                 o = models.Order(
