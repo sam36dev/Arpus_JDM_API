@@ -26,6 +26,7 @@ def _to_out(p: models.Product) -> dict:
         "images": p.images or [],
         "miniature_type": p.miniature_type,
         "is_pack": p.is_pack,
+        "stock": p.stock,
         "created_at": p.created_at,
         "bonus_card": {
             "enabled": p.bonus_card_enabled,
