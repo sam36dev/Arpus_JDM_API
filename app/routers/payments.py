@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -12,6 +12,54 @@ from .. import models
 from ..auth import get_current_customer
 from ..database import get_db
 from .orders import _finalize_order
+
+BR_OFFSET = timedelta(hours=-3)
+
+def _next_schedule_utc() -> datetime:
+    now_br = datetime.utcnow() + BR_OFFSET
+    hour = now_br.hour
+    if hour < 8:
+        sched_br = now_br.replace(hour=8, minute=0, second=0, microsecond=0)
+    elif hour < 15:
+        sched_br = now_br.replace(hour=15, minute=0, second=0, microsecond=0)
+    else:
+        sched_br = (now_br + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
+    return sched_br - BR_OFFSET
+
+def _create_shipping_chamado(db: Session, order: models.Order) -> None:
+    arthur = (
+        db.query(models.Conta)
+        .filter(models.Conta.buyer_name.ilike("%arthur%"))
+        .first()
+    )
+    customer = order.customer
+    name = customer.name if customer else (order.customer_email or "Cliente")
+    lines = [f"Cliente: {name}"]
+    if customer:
+        parts = [
+            customer.address_street, customer.address_number,
+            customer.address_complement, customer.address_neighborhood,
+            customer.address_city, customer.address_state, customer.address_cep,
+        ]
+        addr = ", ".join(p for p in parts if p)
+        if addr:
+            lines.append(f"Endereço: {addr}")
+        if customer.phone:
+            lines.append(f"Tel: {customer.phone}")
+    lines.append("Itens:")
+    for item in order.items:
+        product = db.get(models.Product, item.product_id)
+        pname = product.name if product else f"#{item.product_id}"
+        lines.append(f"  - {pname} x{item.quantity}")
+    lines.append(f"Total: R$ {order.total:.2f}")
+    db.add(models.Chamado(
+        title=f"Despachar pedido #{order.id} — {name}",
+        description="\n".join(lines),
+        hours=72,
+        conta_id=arthur.id if arthur else None,
+        scheduled_at=_next_schedule_utc(),
+    ))
+    db.commit()
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -256,6 +304,7 @@ def asaas_webhook(body: Any = Body(default=None), db: Session = Depends(get_db))
         else:
             try:
                 _finalize_order(db, order)
+                _create_shipping_chamado(db, order)
             except Exception:
                 order.status = "pago"
                 db.commit()
