@@ -288,3 +288,25 @@ def claim_collection(
 
     db.commit()
     return {"ok": True}
+
+
+@router.get("/me/collections/progress")
+def collection_progress(
+    db: Session = Depends(get_db),
+    customer: models.Customer = Depends(get_current_customer),
+):
+    my_card_ids = {
+        pull.card_id
+        for pull in db.query(models.CardPull)
+        .join(models.OrderItem, models.CardPull.order_item_id == models.OrderItem.id)
+        .join(models.Order, models.OrderItem.order_id == models.Order.id)
+        .filter(models.Order.customer_id == customer.id)
+        .all()
+    }
+    collections = db.query(models.Collection).all()
+    result = []
+    for col in collections:
+        col_card_ids = {c.id for c in col.cards}
+        owned = len(col_card_ids & my_card_ids)
+        result.append({"collection_id": col.id, "owned": owned, "total": len(col_card_ids)})
+    return result
