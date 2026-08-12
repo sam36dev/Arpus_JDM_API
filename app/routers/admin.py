@@ -307,6 +307,56 @@ def migrate_customer_profile(db: Session = Depends(get_db), _admin: models.Admin
     return {"results": results}
 
 
+@router.get("/customers/by-plate/{plate}")
+def customer_by_plate(
+    plate: str,
+    db: Session = Depends(get_db),
+    _admin: models.AdminUser = Depends(get_current_admin),
+):
+    customer = db.query(models.Customer).filter(
+        func.lower(models.Customer.plate) == plate.strip().lower()
+    ).first()
+    if not customer:
+        raise HTTPException(404, "Nenhum cliente com essa placa")
+    return {"id": customer.id, "name": customer.name, "email": customer.email, "plate": customer.plate}
+
+
+class GiftPacksPayload(BaseModel):
+    customer_id: int
+    pack_product_id: int
+    quantity: int
+
+
+@router.post("/gift-packs")
+def gift_packs(
+    payload: GiftPacksPayload,
+    db: Session = Depends(get_db),
+    _admin: models.AdminUser = Depends(get_current_admin),
+):
+    customer = db.get(models.Customer, payload.customer_id)
+    if not customer:
+        raise HTTPException(404, "Cliente não encontrado")
+    product = db.get(models.Product, payload.pack_product_id)
+    if not product or not product.is_pack:
+        raise HTTPException(400, "Produto não é um pacote")
+    if payload.quantity < 1 or payload.quantity > 50:
+        raise HTTPException(400, "Quantidade inválida (1–50)")
+
+    for _ in range(payload.quantity):
+        order = models.Order(
+            customer_id=customer.id,
+            customer_email=customer.email,
+            status="pendente",
+            total=0.0,
+        )
+        db.add(order)
+        db.flush()
+        db.add(models.OrderItem(order_id=order.id, product_id=product.id, quantity=1, unit_price=0.0))
+
+    db.commit()
+    return {"ok": True, "sent": payload.quantity}
+
+
 @router.post("/bootstrap")
 def bootstrap(payload: schemas.AdminBootstrap, db: Session = Depends(get_db)):
     """Cria o primeiro admin. Exige ADMIN_BOOTSTRAP_KEY (env var) e só
