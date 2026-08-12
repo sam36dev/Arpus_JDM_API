@@ -221,12 +221,14 @@ def complete_profile(
             .first()
         )
         if pack:
-            order = models.Order(status="pendente", total=0, customer_id=customer.id)
-            db.add(order)
-            db.flush()
-            db.add(models.OrderItem(order_id=order.id, product_id=pack.id, quantity=1, unit_price=0))
+            for i in range(5):
+                order = models.Order(status="pendente", total=0, customer_id=customer.id)
+                db.add(order)
+                db.flush()
+                db.add(models.OrderItem(order_id=order.id, product_id=pack.id, quantity=1, unit_price=0))
+                if i == 0:
+                    order_id = order.id
             db.commit()
-            order_id = order.id
 
     return {"ok": True, "order_id": order_id}
 
