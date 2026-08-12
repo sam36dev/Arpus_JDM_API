@@ -307,6 +307,26 @@ def migrate_customer_profile(db: Session = Depends(get_db), _admin: models.Admin
     return {"results": results}
 
 
+class ChangePasswordPayload(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+def change_password(
+    payload: ChangePasswordPayload,
+    db: Session = Depends(get_db),
+    admin: models.AdminUser = Depends(get_current_admin),
+):
+    if not verify_password(payload.current_password, admin.hashed_password):
+        raise HTTPException(400, "Senha atual incorreta")
+    if len(payload.new_password) < 8:
+        raise HTTPException(400, "Nova senha precisa ter no mínimo 8 caracteres")
+    admin.hashed_password = hash_password(payload.new_password)
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/customers/by-plate/{plate}")
 def customer_by_plate(
     plate: str,
