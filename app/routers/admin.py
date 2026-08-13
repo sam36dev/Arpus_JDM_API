@@ -3,7 +3,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import func, text
+from sqlalchemy import func, text, desc
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -325,6 +325,44 @@ def change_password(
     admin.hashed_password = hash_password(payload.new_password)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/customers/ranking")
+def customers_ranking(
+    db: Session = Depends(get_db),
+    _admin: models.AdminUser = Depends(get_current_admin),
+):
+    rows = (
+        db.query(
+            models.Customer.id,
+            models.Customer.name,
+            models.Customer.email,
+            models.Customer.plate,
+            func.coalesce(func.sum(models.Order.total), 0).label("points"),
+            func.count(models.Order.id).label("orders"),
+        )
+        .outerjoin(
+            models.Order,
+            (models.Order.customer_id == models.Customer.id) &
+            (models.Order.total > 0) &
+            (models.Order.status.in_(["pago", "pendente"]))
+        )
+        .group_by(models.Customer.id)
+        .order_by(desc("points"))
+        .all()
+    )
+    return [
+        {
+            "position": i + 1,
+            "id": r.id,
+            "name": r.name,
+            "email": r.email,
+            "plate": r.plate,
+            "points": round(float(r.points), 2),
+            "orders": r.orders,
+        }
+        for i, r in enumerate(rows)
+    ]
 
 
 @router.get("/customers/by-plate/{plate}")
