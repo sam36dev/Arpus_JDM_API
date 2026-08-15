@@ -327,6 +327,27 @@ def change_password(
     return {"ok": True}
 
 
+@router.get("/customers/list")
+def customers_list(
+    db: Session = Depends(get_db),
+    _admin: models.AdminUser = Depends(get_current_admin),
+):
+    customers = db.query(models.Customer).order_by(models.Customer.created_at.desc()).all()
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "email": c.email,
+            "plate": c.plate,
+            "profile_complete": c.address_cep is not None,
+            "address_city": c.address_city,
+            "address_state": c.address_state,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in customers
+    ]
+
+
 @router.get("/customers/ranking")
 def customers_ranking(
     db: Session = Depends(get_db),
