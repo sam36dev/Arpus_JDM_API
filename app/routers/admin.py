@@ -405,6 +405,10 @@ def customer_by_plate(
         "name": customer.name,
         "email": customer.email,
         "plate": customer.plate,
+        "profile_complete": customer.address_cep is not None,
+        "phone": customer.phone,
+        "address_city": customer.address_city,
+        "address_state": customer.address_state,
         "total_cards": total_cards,
         "collections": collection_progress,
     }
