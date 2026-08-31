@@ -552,6 +552,19 @@ def delete_coupon(
     return {"ok": True}
 
 
+@router.post("/bulk-set-min-price")
+def bulk_set_min_price(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    """Seta para R$29.99 todas as miniaturas com preço abaixo disso."""
+    updated = db.query(models.Product).filter(
+        models.Product.category == "miniaturas",
+        models.Product.price < 29.99,
+    ).all()
+    for p in updated:
+        p.price = 29.99
+    db.commit()
+    return {"updated": len(updated), "products": [p.name for p in updated]}
+
+
 def _coupon_out(c: models.Coupon) -> dict:
     return {
         "id": c.id,
