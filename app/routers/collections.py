@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -10,7 +11,28 @@ router = APIRouter(prefix="/collections", tags=["collections"])
 
 @router.get("", response_model=list[schemas.CollectionListOut])
 def list_collections(db: Session = Depends(get_db)):
-    return db.query(models.Collection).order_by(models.Collection.created_at.desc()).all()
+    cnt_sq = (
+        db.query(
+            models.collection_cards.c.collection_id,
+            func.count().label("cnt"),
+        )
+        .group_by(models.collection_cards.c.collection_id)
+        .subquery()
+    )
+    rows = (
+        db.query(models.Collection, func.coalesce(cnt_sq.c.cnt, 0))
+        .outerjoin(cnt_sq, models.Collection.id == cnt_sq.c.collection_id)
+        .order_by(models.Collection.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": c.id, "name": c.name, "description": c.description,
+            "image": c.image, "reward_image": c.reward_image,
+            "created_at": c.created_at, "card_count": int(cnt),
+        }
+        for c, cnt in rows
+    ]
 
 
 @router.get("/{collection_id}", response_model=schemas.CollectionOut)

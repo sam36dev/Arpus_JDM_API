@@ -33,19 +33,22 @@ def draw_card(db: Session, rarity: models.Rarity, exclude_ids: set[int] | None =
     return random.choice(cards)
 
 
+CARD_PER_REAIS = 39.0
+
 def open_bonus_card(db: Session, product: models.Product) -> list[models.Card]:
-    """Sorteia a carta bônus de um produto (não-pacote) que inclui 1 carta."""
-    if not product.bonus_card_enabled:
+    """1 carta aleatória a cada R$39 em miniaturas. Automático — sem toggle."""
+    if product.is_pack or product.category != "miniaturas":
         return []
-    rarity_id = product.bonus_card_rarity or "random"
-    if rarity_id == "random":
+    n = int(product.price // CARD_PER_REAIS)
+    if n <= 0:
+        return []
+    cards = []
+    for _ in range(n):
         rarity = draw_rarity(db)
-    else:
-        rarity = db.get(models.Rarity, rarity_id)
-        if not rarity:
-            rarity = draw_rarity(db)
-    card = draw_card(db, rarity)
-    return [card] if card else []
+        card = draw_card(db, rarity)
+        if card:
+            cards.append(card)
+    return cards
 
 
 def open_pack(db: Session, product: models.Product) -> list[models.Card]:

@@ -98,7 +98,7 @@ class CollectionListOut(BaseModel):
     image: Optional[str] = None
     reward_image: Optional[str] = None
     created_at: datetime
-    cards: list[CardOutLight] = []
+    card_count: int = 0
 
 class CollectionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
