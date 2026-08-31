@@ -207,3 +207,15 @@ class CollectionClaim(Base):
 
     customer = relationship("Customer")
     collection = relationship("Collection")
+
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, nullable=False, index=True)
+    type = Column(String, nullable=False)  # "free_shipping" | "percent"
+    value = Column(Float, default=0)       # percentual para type="percent"
+    expires_at = Column(DateTime, nullable=True)  # None = sem expiração
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

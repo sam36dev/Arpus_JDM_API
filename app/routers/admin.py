@@ -12,12 +12,25 @@ from ..database import get_db
 from ..limiter import limiter
 
 
+import random
+import string
+
 class AdminCreate(BaseModel):
     email: str
     password: str
     role: str = "atendente"
 
+class CouponCreate(BaseModel):
+    code: str | None = None        # None = gera automaticamente
+    type: str = "free_shipping"    # "free_shipping" | "percent"
+    value: float = 0               # percentual (usado só quando type=percent)
+    hours: int | None = 48         # None = sem expiração
+
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def _gen_code(length: int = 8) -> str:
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 
 @router.post("/login", response_model=schemas.Token)
@@ -484,5 +497,70 @@ def bootstrap(payload: schemas.AdminBootstrap, db: Session = Depends(get_db)):
     db.add(admin)
     db.commit()
     return {"ok": True}
+
+
+# ── CUPONS ────────────────────────────────────────────────────────────────────
+
+@router.post("/coupons")
+def create_coupon(
+    payload: CouponCreate,
+    db: Session = Depends(get_db),
+    _admin: models.AdminUser = Depends(get_current_admin),
+):
+    code = (payload.code or _gen_code()).upper().strip()
+    if db.query(models.Coupon).filter(models.Coupon.code == code).first():
+        raise HTTPException(400, f"Código '{code}' já existe")
+    expires_at = datetime.utcnow() + datetime.resolution * 0  # placeholder
+    if payload.hours is not None:
+        from datetime import timedelta
+        expires_at = datetime.utcnow() + timedelta(hours=payload.hours)
+    else:
+        expires_at = None
+    coupon = models.Coupon(
+        code=code,
+        type=payload.type,
+        value=payload.value,
+        expires_at=expires_at,
+        is_active=True,
+    )
+    db.add(coupon)
+    db.commit()
+    db.refresh(coupon)
+    return _coupon_out(coupon)
+
+
+@router.get("/coupons")
+def list_coupons(
+    db: Session = Depends(get_db),
+    _admin: models.AdminUser = Depends(get_current_admin),
+):
+    coupons = db.query(models.Coupon).order_by(models.Coupon.created_at.desc()).all()
+    return [_coupon_out(c) for c in coupons]
+
+
+@router.delete("/coupons/{code}")
+def delete_coupon(
+    code: str,
+    db: Session = Depends(get_db),
+    _admin: models.AdminUser = Depends(get_current_admin),
+):
+    coupon = db.query(models.Coupon).filter(models.Coupon.code == code.upper()).first()
+    if not coupon:
+        raise HTTPException(404, "Cupom não encontrado")
+    db.delete(coupon)
+    db.commit()
+    return {"ok": True}
+
+
+def _coupon_out(c: models.Coupon) -> dict:
+    return {
+        "id": c.id,
+        "code": c.code,
+        "type": c.type,
+        "value": c.value,
+        "expires_at": c.expires_at.isoformat() if c.expires_at else None,
+        "is_active": c.is_active,
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+    }
 
 

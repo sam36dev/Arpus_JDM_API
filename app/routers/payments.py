@@ -182,13 +182,28 @@ def payment_checkout(
     order_ids = [o.id for o in all_orders]
     external_ref = ",".join(str(i) for i in order_ids)
 
-    # Coupon discount (on subtotal)
-    discount_pct = VALID_COUPONS.get((payload.coupon or "").upper(), 0)
+    # Coupon lookup — DB first, fallback to legacy hardcoded dict
+    discount_pct = 0.0
+    free_shipping_coupon = False
+    if payload.coupon:
+        from .. import models as _models
+        coupon_obj = db.query(_models.Coupon).filter(
+            _models.Coupon.code == payload.coupon.upper(),
+            _models.Coupon.is_active == True,
+        ).first()
+        if coupon_obj and (coupon_obj.expires_at is None or coupon_obj.expires_at > datetime.utcnow()):
+            if coupon_obj.type == "free_shipping":
+                free_shipping_coupon = True
+            elif coupon_obj.type == "percent":
+                discount_pct = coupon_obj.value
+        else:
+            discount_pct = VALID_COUPONS.get(payload.coupon.upper(), 0)
+
     discount_amt = subtotal * discount_pct / 100
 
     # Shipping applies only to non-pack items
     non_pack_subtotal = sum(p.price * q for p, q in other_items)
-    shipping = 0.0 if (not other_items or non_pack_subtotal >= 500) else 49.90
+    shipping = 0.0 if (not other_items or non_pack_subtotal >= 500 or free_shipping_coupon) else 49.90
 
     total = round(max(subtotal - discount_amt + shipping, 0.01), 2)
 
