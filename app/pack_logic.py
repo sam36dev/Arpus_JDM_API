@@ -33,7 +33,7 @@ def draw_card(db: Session, rarity: models.Rarity, exclude_ids: set[int] | None =
     return random.choice(cards)
 
 
-CARD_PER_REAIS = 39.0
+CARD_PER_REAIS = 40.0
 
 def open_bonus_card(db: Session, product: models.Product) -> list[models.Card]:
     """1 carta aleatória a cada R$39 em miniaturas. Automático — sem toggle."""
