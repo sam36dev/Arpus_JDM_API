@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from .database import Base, SessionLocal, engine
 from .limiter import limiter
-from .routers import admin, cards, chamados, collections, contas, customers, orders, payments, products, rarities
+from .routers import admin, cards, chamados, collections, contas, customers, orders, payments, products, rarities, shipping
 from .seed_data import seed_initial_data
 
 
@@ -56,6 +56,7 @@ app.include_router(collections.router)
 app.include_router(contas.router)
 app.include_router(chamados.router)
 app.include_router(payments.router)
+app.include_router(shipping.router)
 
 
 @app.get("/")
