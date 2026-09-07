@@ -543,9 +543,11 @@ def create_coupon(
     code = (payload.code or _gen_code()).upper().strip()
     if db.query(models.Coupon).filter(models.Coupon.code == code).first():
         raise HTTPException(400, f"Código '{code}' já existe")
-    expires_at = datetime.utcnow() + datetime.resolution * 0  # placeholder
-    if payload.hours is not None:
-        from datetime import timedelta
+    from datetime import timedelta
+    # full_discount: sempre 20 minutos, uso único (desativado após uso)
+    if payload.type == "full_discount":
+        expires_at = datetime.utcnow() + timedelta(minutes=20)
+    elif payload.hours is not None:
         expires_at = datetime.utcnow() + timedelta(hours=payload.hours)
     else:
         expires_at = None

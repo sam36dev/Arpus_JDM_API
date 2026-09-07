@@ -229,10 +229,11 @@ def payment_checkout(
 
     # ── Full discount: skip Asaas, finalize immediately, attribute original value to ranking ──
     if full_discount_coupon:
+        # Desativa cupom imediatamente — uso único
+        coupon_obj.is_active = False
         # Distribute attributed_value per-order so the sum equals the original cart value
         for o in all_orders:
             o.total = 0.0
-            # Each order's attributed value = its own item prices (+ shipping only on physical order)
             order_subtotal = sum(
                 (db.get(models.Product, item.product_id) or models.Product(price=0)).price * item.quantity
                 for item in o.items
