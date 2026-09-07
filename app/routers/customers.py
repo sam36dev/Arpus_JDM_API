@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
-from ..auth import create_access_token, get_current_customer, hash_password, verify_password
+from ..auth import create_access_token, get_current_customer, hash_password, verify_password, CUSTOMER_TOKEN_EXPIRE_MINUTES
 from ..database import get_db
 from ..limiter import limiter
 
@@ -57,7 +57,7 @@ def register(request: Request, payload: schemas.CustomerRegister, db: Session = 
     )
     db.add(customer)
     db.commit()
-    token = create_access_token({"sub": customer.email, "type": "customer"})
+    token = create_access_token({"sub": customer.email, "type": "customer"}, expires_minutes=CUSTOMER_TOKEN_EXPIRE_MINUTES)
     return {"access_token": token, "name": customer.name, "last_name": customer.last_name, "email": customer.email, "plate": customer.plate, "address_cep": None}
 
 
@@ -70,7 +70,7 @@ def login(request: Request, payload: schemas.CustomerLogin, db: Session = Depend
     if not customer.plate:
         customer.plate = _generate_plate(db)
         db.commit()
-    token = create_access_token({"sub": customer.email, "type": "customer"})
+    token = create_access_token({"sub": customer.email, "type": "customer"}, expires_minutes=CUSTOMER_TOKEN_EXPIRE_MINUTES)
     return {"access_token": token, "name": customer.name, "last_name": customer.last_name, "email": customer.email, "plate": customer.plate, "address_cep": customer.address_cep}
 
 
@@ -96,7 +96,7 @@ def google_auth(payload: GoogleAuthIn, db: Session = Depends(get_db)):
         )
         db.add(customer)
         db.commit()
-    token = create_access_token({"sub": customer.email, "type": "customer"})
+    token = create_access_token({"sub": customer.email, "type": "customer"}, expires_minutes=CUSTOMER_TOKEN_EXPIRE_MINUTES)
     return {"access_token": token, "name": customer.name, "email": customer.email, "plate": customer.plate}
 
 
