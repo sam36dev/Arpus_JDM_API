@@ -411,14 +411,16 @@ def customer_by_plate(
     if not customer:
         raise HTTPException(404, "Nenhum cliente com essa placa")
 
-    my_card_ids = {
-        pull.card_id
-        for pull in db.query(models.CardPull)
+    from collections import Counter
+    all_pulls = (
+        db.query(models.CardPull)
         .join(models.OrderItem, models.CardPull.order_item_id == models.OrderItem.id)
         .join(models.Order, models.OrderItem.order_id == models.Order.id)
         .filter(models.Order.customer_id == customer.id)
         .all()
-    }
+    )
+    my_card_ids = {pull.card_id for pull in all_pulls}
+    pull_counts = Counter(pull.card_id for pull in all_pulls)
     total_cards = len(my_card_ids)
 
     collections = db.query(models.Collection).all()
@@ -428,10 +430,12 @@ def customer_by_plate(
         if not col_card_ids:
             continue
         owned = len(col_card_ids & my_card_ids)
+        count = sum(pull_counts.get(cid, 0) for cid in col_card_ids)
         collection_progress.append({
             "name": col.name,
             "owned": owned,
             "total": len(col_card_ids),
+            "count": count,
         })
 
     return {
