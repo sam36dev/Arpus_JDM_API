@@ -421,7 +421,7 @@ def customer_by_plate(
     )
     my_card_ids = {pull.card_id for pull in all_pulls}
     pull_counts = Counter(pull.card_id for pull in all_pulls)
-    total_cards = len(my_card_ids)
+    total_cards = len(all_pulls)
 
     collections = db.query(models.Collection).all()
     collection_progress = []
