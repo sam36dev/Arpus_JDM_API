@@ -440,6 +440,30 @@ def customer_by_plate(
 
     total_cards = sum(c["count"] for c in collection_progress)
 
+    orders = (
+        db.query(models.Order)
+        .filter(models.Order.customer_id == customer.id, models.Order.status == "pago")
+        .order_by(models.Order.created_at.desc())
+        .all()
+    )
+    pack_history = []
+    for order in orders:
+        for item in order.items:
+            product = db.get(models.Product, item.product_id)
+            if not product or not product.is_pack:
+                continue
+            pulls = db.query(models.CardPull).filter(models.CardPull.order_item_id == item.id).all()
+            if not pulls:
+                continue
+            pack_history.append({
+                "date": order.created_at.strftime("%d/%m/%Y %H:%M") if order.created_at else "—",
+                "pack_name": product.name,
+                "cards": [
+                    {"name": p.card.name, "rarity": p.card.rarity_id, "color": p.card.rarity.color}
+                    for p in pulls if p.card
+                ],
+            })
+
     return {
         "id": customer.id,
         "name": customer.name,
@@ -451,6 +475,7 @@ def customer_by_plate(
         "address_state": customer.address_state,
         "total_cards": total_cards,
         "collections": collection_progress,
+        "pack_history": pack_history,
     }
 
 
