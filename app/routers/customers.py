@@ -6,7 +6,7 @@ import urllib.request
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -312,3 +312,31 @@ def collection_progress(
         owned = len(col_card_ids & my_card_ids)
         result.append({"collection_id": col.id, "owned": owned, "total": len(col_card_ids)})
     return result
+
+
+@router.get("/ranking")
+def public_ranking(db: Session = Depends(get_db)):
+    rows = (
+        db.query(
+            models.Customer,
+            func.sum(models.Order.total).label("total_spent"),
+            func.count(models.Order.id).label("orders"),
+        )
+        .join(models.Order, models.Order.customer_id == models.Customer.id)
+        .filter(models.Order.status.in_(["pago", "pendente"]))
+        .group_by(models.Customer.id)
+        .order_by(desc("total_spent"))
+        .limit(20)
+        .all()
+    )
+    return [
+        {
+            "position": i + 1,
+            "name": r.name,
+            "plate": r.plate or "—",
+            "total_spent": round(float(total_spent), 2),
+            "orders": orders,
+        }
+        for i, (r, total_spent, orders) in enumerate(rows)
+    ]
+
