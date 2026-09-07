@@ -438,6 +438,8 @@ def customer_by_plate(
             "count": count,
         })
 
+    total_cards = sum(c["count"] for c in collection_progress)
+
     return {
         "id": customer.id,
         "name": customer.name,
