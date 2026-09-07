@@ -111,6 +111,23 @@ class CheckoutCreate(BaseModel):
     coupon: str | None = None
 
 
+@router.get("/coupon/check")
+def check_coupon(code: str, db: Session = Depends(get_db)):
+    """Valida um cupom publicamente — retorna tipo e desconto sem revelar o DB completo."""
+    upper = code.upper().strip()
+    coupon_obj = db.query(models.Coupon).filter(
+        models.Coupon.code == upper,
+        models.Coupon.is_active == True,
+    ).first()
+    if coupon_obj and (coupon_obj.expires_at is None or coupon_obj.expires_at > datetime.utcnow()):
+        return {"valid": True, "type": coupon_obj.type, "value": coupon_obj.value}
+    # Fallback legacy
+    legacy_pct = VALID_COUPONS.get(upper, 0)
+    if legacy_pct:
+        return {"valid": True, "type": "percent", "value": legacy_pct}
+    return {"valid": False, "type": None, "value": 0}
+
+
 @router.post("/checkout")
 def payment_checkout(
     payload: CheckoutCreate,
@@ -185,6 +202,7 @@ def payment_checkout(
     # Coupon lookup — DB first, fallback to legacy hardcoded dict
     discount_pct = 0.0
     free_shipping_coupon = False
+    full_discount_coupon = False
     if payload.coupon:
         from .. import models as _models
         coupon_obj = db.query(_models.Coupon).filter(
@@ -196,6 +214,8 @@ def payment_checkout(
                 free_shipping_coupon = True
             elif coupon_obj.type == "percent":
                 discount_pct = coupon_obj.value
+            elif coupon_obj.type == "full_discount":
+                full_discount_coupon = True
         else:
             discount_pct = VALID_COUPONS.get(payload.coupon.upper(), 0)
 
@@ -203,9 +223,35 @@ def payment_checkout(
 
     # Shipping applies only to non-pack items
     non_pack_subtotal = sum(p.price * q for p, q in other_items)
-    shipping = 0.0 if (not other_items or non_pack_subtotal >= 500 or free_shipping_coupon) else 49.90
+    shipping = 0.0 if (not other_items or non_pack_subtotal >= 500 or free_shipping_coupon or full_discount_coupon) else 49.90
 
     total = round(max(subtotal - discount_amt + shipping, 0.01), 2)
+
+    # ── Full discount: skip Asaas, finalize immediately, attribute original value to ranking ──
+    if full_discount_coupon:
+        # Distribute attributed_value per-order so the sum equals the original cart value
+        for o in all_orders:
+            o.total = 0.0
+            # Each order's attributed value = its own item prices (+ shipping only on physical order)
+            order_subtotal = sum(
+                (db.get(models.Product, item.product_id) or models.Product(price=0)).price * item.quantity
+                for item in o.items
+            )
+            has_pack = any(
+                bool((db.get(models.Product, item.product_id) or models.Product()).is_pack)
+                for item in o.items
+            )
+            o.attributed_value = round(order_subtotal + (shipping if not has_pack else 0), 2)
+            if has_pack:
+                o.status = "pendente"
+            else:
+                try:
+                    _finalize_order(db, o)
+                    _create_shipping_chamado(db, o)
+                except Exception:
+                    o.status = "pago"
+        db.commit()
+        return {"order_ids": order_ids, "free": True, "total": 0}
 
     try:
         asaas_customer_id = _get_or_create_asaas_customer(customer)

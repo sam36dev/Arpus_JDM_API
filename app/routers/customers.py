@@ -316,16 +316,20 @@ def collection_progress(
 
 @router.get("/ranking")
 def public_ranking(db: Session = Depends(get_db)):
+    from sqlalchemy import case, literal
+    score_expr = func.sum(
+        func.coalesce(models.Order.attributed_value, models.Order.total)
+    ).label("score")
     rows = (
         db.query(
             models.Customer,
-            func.sum(models.Order.total).label("total_spent"),
+            score_expr,
             func.count(models.Order.id).label("orders"),
         )
         .join(models.Order, models.Order.customer_id == models.Customer.id)
         .filter(models.Order.status.in_(["pago", "pendente"]))
         .group_by(models.Customer.id)
-        .order_by(desc("total_spent"))
+        .order_by(desc("score"))
         .limit(20)
         .all()
     )
@@ -334,9 +338,10 @@ def public_ranking(db: Session = Depends(get_db)):
             "position": i + 1,
             "name": r.name,
             "plate": r.plate or "—",
-            "total_spent": round(float(total_spent), 2),
+            "score": round(float(score), 2),
+            "points": int(float(score) // 10),
             "orders": orders,
         }
-        for i, (r, total_spent, orders) in enumerate(rows)
+        for i, (r, score, orders) in enumerate(rows)
     ]
 

@@ -22,7 +22,7 @@ class AdminCreate(BaseModel):
 
 class CouponCreate(BaseModel):
     code: str | None = None        # None = gera automaticamente
-    type: str = "free_shipping"    # "free_shipping" | "percent"
+    type: str = "free_shipping"    # "free_shipping" | "percent" | "full_discount"
     value: float = 0               # percentual (usado só quando type=percent)
     hours: int | None = 48         # None = sem expiração
 
@@ -372,17 +372,18 @@ def customers_ranking(
             models.Customer.name,
             models.Customer.email,
             models.Customer.plate,
-            func.coalesce(func.sum(models.Order.total), 0).label("points"),
+            func.coalesce(
+                func.sum(func.coalesce(models.Order.attributed_value, models.Order.total)), 0
+            ).label("score"),
             func.count(models.Order.id).label("orders"),
         )
         .outerjoin(
             models.Order,
             (models.Order.customer_id == models.Customer.id) &
-            (models.Order.total > 0) &
             (models.Order.status.in_(["pago", "pendente"]))
         )
         .group_by(models.Customer.id)
-        .order_by(desc("points"))
+        .order_by(desc("score"))
         .all()
     )
     return [
@@ -392,7 +393,8 @@ def customers_ranking(
             "name": r.name,
             "email": r.email,
             "plate": r.plate,
-            "points": round(float(r.points), 2),
+            "score": round(float(r.score), 2),
+            "points": int(float(r.score) // 10),
             "orders": r.orders,
         }
         for i, r in enumerate(rows)
@@ -594,5 +596,15 @@ def _coupon_out(c: models.Coupon) -> dict:
         "is_active": c.is_active,
         "created_at": c.created_at.isoformat() if c.created_at else None,
     }
+
+
+@router.post("/migrate-order-attributed-value")
+def migrate_order_attributed_value(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    try:
+        db.execute(text("ALTER TABLE orders ADD COLUMN attributed_value FLOAT"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna attributed_value adicionada a orders"}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
 
 

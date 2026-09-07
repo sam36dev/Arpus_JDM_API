@@ -162,6 +162,7 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String, default="pendente")  # pendente, pago, cancelado
     total = Column(Float, nullable=False)
+    attributed_value = Column(Float, nullable=True)  # valor real para ranking (cupom full_discount)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
     customer_email = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -214,7 +215,7 @@ class Coupon(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String, unique=True, nullable=False, index=True)
-    type = Column(String, nullable=False)  # "free_shipping" | "percent"
+    type = Column(String, nullable=False)  # "free_shipping" | "percent" | "full_discount"
     value = Column(Float, default=0)       # percentual para type="percent"
     expires_at = Column(DateTime, nullable=True)  # None = sem expiração
     is_active = Column(Boolean, default=True)
