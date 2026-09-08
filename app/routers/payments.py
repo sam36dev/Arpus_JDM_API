@@ -219,7 +219,20 @@ def payment_checkout(
         else:
             discount_pct = VALID_COUPONS.get(payload.coupon.upper(), 0)
 
-    discount_amt = subtotal * discount_pct / 100
+    # Desconto de marca: 10% em miniaturas quando qty >= 3 da mesma brand
+    brand_qty: dict[str, float] = {}
+    brand_subtotal: dict[str, float] = {}
+    for product, qty in other_items:
+        if product.category == "miniaturas" and product.brand:
+            brand_qty[product.brand] = brand_qty.get(product.brand, 0) + qty
+            brand_subtotal[product.brand] = brand_subtotal.get(product.brand, 0) + product.price * qty
+    brand_discount_amt = sum(
+        brand_subtotal[b] * 0.10
+        for b, qty in brand_qty.items()
+        if qty >= 3
+    )
+
+    discount_amt = subtotal * discount_pct / 100 + brand_discount_amt
 
     # Shipping applies only to non-pack items
     non_pack_subtotal = sum(p.price * q for p, q in other_items)
@@ -242,7 +255,12 @@ def payment_checkout(
                 bool((db.get(models.Product, item.product_id) or models.Product()).is_pack)
                 for item in o.items
             )
-            o.attributed_value = round(order_subtotal + (shipping if not has_pack else 0), 2)
+            o.attributed_value = round(
+                order_subtotal
+                - (brand_discount_amt if not has_pack else 0)
+                + (shipping if not has_pack else 0),
+                2
+            )
             if has_pack:
                 o.status = "pendente"
             else:
