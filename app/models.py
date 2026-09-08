@@ -215,8 +215,9 @@ class Coupon(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String, unique=True, nullable=False, index=True)
-    type = Column(String, nullable=False)  # "free_shipping" | "percent" | "full_discount"
-    value = Column(Float, default=0)       # percentual para type="percent"
+    type = Column(String, nullable=False)  # "percent" | "full_discount" | "free_shipping" (legado)
+    value = Column(Float, default=0)       # percentual 0-100 para type="percent"
+    free_shipping = Column(Boolean, default=False, nullable=True)  # frete grátis independente do tipo
     expires_at = Column(DateTime, nullable=True)  # None = sem expiração
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

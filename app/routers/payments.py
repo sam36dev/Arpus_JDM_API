@@ -120,12 +120,13 @@ def check_coupon(code: str, db: Session = Depends(get_db)):
         models.Coupon.is_active == True,
     ).first()
     if coupon_obj and (coupon_obj.expires_at is None or coupon_obj.expires_at > datetime.utcnow()):
-        return {"valid": True, "type": coupon_obj.type, "value": coupon_obj.value}
+        has_free_ship = bool(coupon_obj.free_shipping) or coupon_obj.type == "free_shipping"
+        return {"valid": True, "type": coupon_obj.type, "value": coupon_obj.value, "free_shipping": has_free_ship}
     # Fallback legacy
     legacy_pct = VALID_COUPONS.get(upper, 0)
     if legacy_pct:
-        return {"valid": True, "type": "percent", "value": legacy_pct}
-    return {"valid": False, "type": None, "value": 0}
+        return {"valid": True, "type": "percent", "value": legacy_pct, "free_shipping": False}
+    return {"valid": False, "type": None, "value": 0, "free_shipping": False}
 
 
 @router.post("/checkout")
@@ -210,12 +211,14 @@ def payment_checkout(
             _models.Coupon.is_active == True,
         ).first()
         if coupon_obj and (coupon_obj.expires_at is None or coupon_obj.expires_at > datetime.utcnow()):
-            if coupon_obj.type == "free_shipping":
+            if coupon_obj.type == "full_discount":
+                full_discount_coupon = True
+            elif coupon_obj.type == "free_shipping":
                 free_shipping_coupon = True
             elif coupon_obj.type == "percent":
                 discount_pct = coupon_obj.value
-            elif coupon_obj.type == "full_discount":
-                full_discount_coupon = True
+                if coupon_obj.free_shipping:
+                    free_shipping_coupon = True
         else:
             discount_pct = VALID_COUPONS.get(payload.coupon.upper(), 0)
 

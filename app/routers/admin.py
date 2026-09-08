@@ -22,8 +22,9 @@ class AdminCreate(BaseModel):
 
 class CouponCreate(BaseModel):
     code: str | None = None        # None = gera automaticamente
-    type: str = "free_shipping"    # "free_shipping" | "percent" | "full_discount"
-    value: float = 0               # percentual (usado só quando type=percent)
+    type: str = "percent"          # "percent" | "full_discount" | "free_shipping" (legado)
+    value: float = 0               # percentual 0-100 (type=percent)
+    free_shipping: bool = False    # frete grátis independente do percentual
     hours: int | None = 48         # None = sem expiração
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -555,6 +556,7 @@ def create_coupon(
         code=code,
         type=payload.type,
         value=payload.value,
+        free_shipping=payload.free_shipping,
         expires_at=expires_at,
         is_active=True,
     )
@@ -594,6 +596,7 @@ def _coupon_out(c: models.Coupon) -> dict:
         "code": c.code,
         "type": c.type,
         "value": c.value,
+        "free_shipping": bool(c.free_shipping),
         "expires_at": c.expires_at.isoformat() if c.expires_at else None,
         "is_active": c.is_active,
         "created_at": c.created_at.isoformat() if c.created_at else None,
@@ -606,6 +609,16 @@ def migrate_order_attributed_value(db: Session = Depends(get_db), _admin: models
         db.execute(text("ALTER TABLE orders ADD COLUMN attributed_value FLOAT"))
         db.commit()
         return {"ok": True, "msg": "Coluna attributed_value adicionada a orders"}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+
+
+@router.post("/migrate-coupon-free-shipping")
+def migrate_coupon_free_shipping(db: Session = Depends(get_db), _admin: models.AdminUser = Depends(get_current_admin)):
+    try:
+        db.execute(text("ALTER TABLE coupons ADD COLUMN free_shipping BOOLEAN DEFAULT FALSE"))
+        db.commit()
+        return {"ok": True, "msg": "Coluna free_shipping adicionada a coupons"}
     except Exception as e:
         return {"ok": False, "msg": str(e)}
 
